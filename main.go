@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,36 +68,54 @@ func main() {
 		}
 
 		// Execute the installation script
-		// combinedCmd := exec.Command("sh", tmpfile.Name())
-		// output, err = combinedCmd.CombinedOutput()
-		// if err != nil {
-		// 	logMessage(fmt.Sprintf("Error executing script: %v", err))
-		// }
-
-		// logMessage(string(output))
-
-		// Add Solana to PATH in .bashrc or .profile
-		// err = addSolanaToPath(logMessage)
-		// if err != nil {
-		// 	logMessage(fmt.Sprintf("Error adding Solana to PATH: %v", err))
-		// } else {
-		// 	logMessage("Solana path added to user's profile.")
-		// 	logMessage("Please reload your shell configuration or restart your terminal for the changes to take effect.")
-		// }
-
-		// Execute the installation script in a separate goroutine
 		go func() {
 			combinedCmd := exec.Command("sh", tmpfile.Name())
-			output, err := combinedCmd.CombinedOutput()
+
+			// Create pipes for stdout and stderr
+			stdout, err := combinedCmd.StdoutPipe()
 			if err != nil {
+				app.QueueUpdateDraw(func() {
+					logMessage(fmt.Sprintf("Error creating stdout pipe: %v", err))
+				})
+				return
+			}
+			stderr, err := combinedCmd.StderrPipe()
+			if err != nil {
+				app.QueueUpdateDraw(func() {
+					logMessage(fmt.Sprintf("Error creating stderr pipe: %v", err))
+				})
+				return
+			}
+
+			// Start the command
+			if err := combinedCmd.Start(); err != nil {
+				app.QueueUpdateDraw(func() {
+					logMessage(fmt.Sprintf("Error starting script: %v", err))
+				})
+				return
+			}
+
+			// Function to read from a pipe and update the UI
+			readAndLog := func(pipe io.Reader) {
+				scanner := bufio.NewScanner(pipe)
+				for scanner.Scan() {
+					line := scanner.Text()
+					app.QueueUpdateDraw(func() {
+						logMessage(line)
+					})
+				}
+			}
+
+			// Read from stdout and stderr concurrently
+			go readAndLog(stdout)
+			go readAndLog(stderr)
+
+			// Wait for the command to finish
+			if err := combinedCmd.Wait(); err != nil {
 				app.QueueUpdateDraw(func() {
 					logMessage(fmt.Sprintf("Error executing script: %v", err))
 				})
 			}
-
-			app.QueueUpdateDraw(func() {
-				logMessage(string(output))
-			})
 
 			// Continue with the rest of the installation process
 			err = addSolanaToPath(logMessage)
