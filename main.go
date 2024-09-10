@@ -45,7 +45,7 @@ func main() {
 		logMessage("Starting Solana CLI installation...")
 
 		// Download the installation script
-		curlCmd := exec.Command("curl", "-sSfL", "https://release.anza.xyz/v1.18.22/install")
+		curlCmd := exec.Command("curl", "-sSfL", "https://release.solana.com/v1.18.22/install")
 		output, err = curlCmd.Output()
 		if err != nil {
 			logMessage(fmt.Sprintf("Error downloading script: %v", err))
@@ -66,24 +66,56 @@ func main() {
 		}
 
 		// Execute the installation script
-		combinedCmd := exec.Command("sh", tmpfile.Name())
-		output, err = combinedCmd.CombinedOutput()
-		if err != nil {
-			logMessage(fmt.Sprintf("Error executing script: %v", err))
-		}
+		// combinedCmd := exec.Command("sh", tmpfile.Name())
+		// output, err = combinedCmd.CombinedOutput()
+		// if err != nil {
+		// 	logMessage(fmt.Sprintf("Error executing script: %v", err))
+		// }
 
-		logMessage(string(output))
+		// logMessage(string(output))
 
 		// Add Solana to PATH in .bashrc or .profile
-		err = addSolanaToPath(logMessage)
-		if err != nil {
-			logMessage(fmt.Sprintf("Error adding Solana to PATH: %v", err))
-		} else {
-			logMessage("Solana path added to user's profile.")
-			logMessage("Please reload your shell configuration or restart your terminal for the changes to take effect.")
-		}
+		// err = addSolanaToPath(logMessage)
+		// if err != nil {
+		// 	logMessage(fmt.Sprintf("Error adding Solana to PATH: %v", err))
+		// } else {
+		// 	logMessage("Solana path added to user's profile.")
+		// 	logMessage("Please reload your shell configuration or restart your terminal for the changes to take effect.")
+		// }
 
-		logMessage("Solana CLI installation completed.")
+		// Execute the installation script in a separate goroutine
+		go func() {
+			combinedCmd := exec.Command("sh", tmpfile.Name())
+			output, err := combinedCmd.CombinedOutput()
+			if err != nil {
+				app.QueueUpdateDraw(func() {
+					logMessage(fmt.Sprintf("Error executing script: %v", err))
+				})
+			}
+
+			app.QueueUpdateDraw(func() {
+				logMessage(string(output))
+			})
+
+			// Continue with the rest of the installation process
+			err = addSolanaToPath(logMessage)
+			if err != nil {
+				app.QueueUpdateDraw(func() {
+					logMessage(fmt.Sprintf("Error adding Solana to PATH: %v", err))
+				})
+			} else {
+				app.QueueUpdateDraw(func() {
+					logMessage("Solana path added to user's profile.")
+					logMessage("Please reload your shell configuration or restart your terminal for the changes to take effect.")
+				})
+			}
+
+			app.QueueUpdateDraw(func() {
+				logMessage("Solana CLI installation completed.")
+			})
+		}()
+
+		logMessage("Solana CLI installation started. Please wait...")
 
 	})
 
