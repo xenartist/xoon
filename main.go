@@ -15,6 +15,20 @@ import (
 func main() {
 	app := tview.NewApplication()
 
+	// Create the main menu list
+	mainMenu := tview.NewList().
+		AddItem("Solana CLI", "", 'a', nil).
+		AddItem("X1 Validator", "", 'b', nil).
+		AddItem("X1 Lightnode", "", 'c', nil).
+		AddItem("X1 Pinger", "", 'd', nil).
+		AddItem("XENBLOCKS", "", 'e', nil).
+		AddItem("solXEN", "", 'f', nil).
+		AddItem("Quit", "Press q to exit", 'q', func() {
+			app.Stop()
+		})
+
+	mainMenu.SetBorder(true).SetTitle("Main Menu")
+
 	// Create a text view for logs
 	logView := tview.NewTextView().
 		SetDynamicColors(true).
@@ -25,8 +39,27 @@ func main() {
 
 	// Function to log messages
 	logMessage := func(message string) {
+		// logView.Clear()
 		fmt.Fprintf(logView, "%s\n", message)
 	}
+
+	// Set up menu item selection
+	mainMenu.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
+		switch mainText {
+		case "Solana CLI":
+			logMessage("Solana CLI selected. Add your Solana CLI related content here.")
+		case "X1 Validator":
+			logMessage("X1 Validator selected. Add your X1 Validator related content here.")
+		case "X1 Lightnode":
+			logMessage("X1 Lightnode selected. Add your X1 Lightnode related content here.")
+		case "X1 Pinger":
+			logMessage("X1 Pinger selected. Add your X1 Pinger related content here.")
+		case "XENBLOCKS":
+			logMessage("XENBLOCKS selected. Add your XENBLOCKS related content here.")
+		case "solXEN":
+			logMessage("solXEN selected. Add your solXEN related content here.")
+		}
+	})
 
 	// Create the "Install Solana CLI" button
 	installButton := tview.NewButton("Install Solana CLI")
@@ -139,24 +172,22 @@ func main() {
 
 	})
 
-	// Create the "Quit" button
-	quitButton := tview.NewButton("Quit")
-	quitButton.SetSelectedFunc(func() {
-		app.Stop()
-	})
-
-	// Create a flex layout
-	flex := tview.NewFlex().
+	// Create a flex for the right side (button and log view)
+	rightFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(installButton, 1, 1, false).
-		AddItem(logView, 0, 1, false).
-		AddItem(quitButton, 1, 1, false)
+		AddItem(installButton, 1, 0, false).
+		AddItem(logView, 0, 1, false)
+
+		// Create the main flex layout
+	mainFlex := tview.NewFlex().
+		AddItem(mainMenu, 0, 1, true).
+		AddItem(rightFlex, 0, 3, false)
 
 		// Set a minimum size for the application
 	// app.SetMinSize(60, 20)
 
 	// Run the application
-	if err := app.SetRoot(flex, true).EnableMouse(true).Run(); err != nil {
+	if err := app.SetRoot(mainFlex, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
 }
