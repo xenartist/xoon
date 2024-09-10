@@ -148,9 +148,9 @@ func main() {
 	// Create a flex layout
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(installButton, 1, 1, true).
+		AddItem(installButton, 1, 1, false).
 		AddItem(logView, 0, 1, false).
-		AddItem(quitButton, 1, 1, true)
+		AddItem(quitButton, 1, 1, false)
 
 		// Set a minimum size for the application
 	// app.SetMinSize(60, 20)
