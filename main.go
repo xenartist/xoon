@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,7 +53,7 @@ func main() {
 		}
 
 		// Save the script to a temporary file
-		tmpfile, err := ioutil.TempFile("", "solana-install-*.sh")
+		tmpfile, err := os.CreateTemp("", "solana-install-*.sh")
 		if err != nil {
 			logMessage(fmt.Sprintf("Error creating temp file: %v", err))
 			return
@@ -126,7 +125,7 @@ func addSolanaToPath(logMessage func(string)) error {
 
 	solanaPath := fmt.Sprintf("export PATH=\"%s/.local/share/solana/install/active_release/bin:$PATH\"", homeDir)
 
-	content, err := ioutil.ReadFile(profilePath)
+	content, err := os.ReadFile(profilePath)
 	if err != nil {
 		logMessage(fmt.Sprintf("Error reading profile file: %v", err))
 		return err
