@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -23,9 +24,7 @@ func main() {
 		AddItem("X1 Pinger", "", 'd', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
 		AddItem("solXEN", "", 'f', nil).
-		AddItem("Quit", "Press q to exit", 'q', func() {
-			app.Stop()
-		})
+		AddItem("Quit", "Press Ctrl+Shift+F10 to exit", 0, nil)
 
 	mainMenu.SetBorder(true).SetTitle("xoon")
 
@@ -192,8 +191,14 @@ func main() {
 		AddItem(mainMenu, 0, 1, true).
 		AddItem(rightFlex, 0, 3, false)
 
-		// Set a minimum size for the application
-	// app.SetMinSize(60, 20)
+	// Set up custom input capture for Ctrl+Shift+F10
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyF10 && event.Modifiers() == (tcell.ModCtrl|tcell.ModShift) {
+			app.Stop()
+			return nil
+		}
+		return event
+	})
 
 	// Run the application
 	if err := app.SetRoot(mainFlex, true).EnableMouse(true).Run(); err != nil {
