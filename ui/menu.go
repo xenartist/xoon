@@ -6,7 +6,7 @@ import (
 
 func CreateMainMenu() *tview.List {
 	mainMenu := tview.NewList().
-		AddItem("XOON!", "", 0, nil).
+		AddItem("XOON!(Two Weeks)", "", 0, nil).
 		AddItem("Solana CLI", "", 'a', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
 		AddItem("QUIT", "Ctrl+F10 to Quit", 0, nil)
