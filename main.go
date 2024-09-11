@@ -19,11 +19,7 @@ func main() {
 	// Create the main menu list
 	mainMenu := tview.NewList().
 		AddItem("Solana CLI", "", 'a', nil).
-		AddItem("X1 Validator", "", 'b', nil).
-		AddItem("X1 Lightnode", "", 'c', nil).
-		AddItem("X1 Pinger", "", 'd', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
-		AddItem("solXEN", "", 'f', nil).
 		AddItem("Quit", "Press Ctrl+F10 to quit", 0, nil)
 
 	mainMenu.SetBorder(true).SetTitle("xoon")
@@ -47,16 +43,8 @@ func main() {
 		switch mainText {
 		case "Solana CLI":
 			logMessage("Solana CLI selected. Add your Solana CLI related content here.")
-		case "X1 Validator":
-			logMessage("X1 Validator selected. Add your X1 Validator related content here.")
-		case "X1 Lightnode":
-			logMessage("X1 Lightnode selected. Add your X1 Lightnode related content here.")
-		case "X1 Pinger":
-			logMessage("X1 Pinger selected. Add your X1 Pinger related content here.")
 		case "XENBLOCKS":
 			logMessage("XENBLOCKS selected. Add your XENBLOCKS related content here.")
-		case "solXEN":
-			logMessage("solXEN selected. Add your solXEN related content here.")
 		}
 	})
 
