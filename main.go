@@ -27,7 +27,7 @@ func main() {
 			app.Stop()
 		})
 
-	mainMenu.SetBorder(true).SetTitle("Main Menu")
+	mainMenu.SetBorder(true).SetTitle("xoon")
 
 	// Create a text view for logs
 	logView := tview.NewTextView().
@@ -172,13 +172,22 @@ func main() {
 
 	})
 
+	// Create a flex for the Config area
+	configFlex := tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(installButton, 0, 1, false).
+		AddItem(tview.NewBox(), 0, 1, false) // Placeholder for future controls
+
 	// Create a flex for the right side (button and log view)
 	rightFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(installButton, 1, 0, false).
+		AddItem(configFlex, 3, 0, false).
 		AddItem(logView, 0, 1, false)
 
-		// Create the main flex layout
+		// Add borders and titles
+	configFlex.SetBorder(true).SetTitle("Config")
+
+	// Create the main flex layout
 	mainFlex := tview.NewFlex().
 		AddItem(mainMenu, 0, 1, true).
 		AddItem(rightFlex, 0, 3, false)
