@@ -24,7 +24,7 @@ func main() {
 		AddItem("X1 Pinger", "", 'd', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
 		AddItem("solXEN", "", 'f', nil).
-		AddItem("Quit", "Press Ctrl+Shift+F10 to exit", 0, nil)
+		AddItem("Quit", "Press Ctrl+F10 to quit", 0, nil)
 
 	mainMenu.SetBorder(true).SetTitle("xoon")
 
@@ -193,7 +193,7 @@ func main() {
 
 	// Set up custom input capture for Ctrl+Shift+F10
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyF10 && event.Modifiers() == (tcell.ModCtrl|tcell.ModShift) {
+		if event.Key() == tcell.KeyF10 && event.Modifiers() == tcell.ModCtrl {
 			app.Stop()
 			return nil
 		}
