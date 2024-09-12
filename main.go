@@ -28,7 +28,8 @@ func main() {
 	//XENBLOCKS
 	xenblockLogView := ui.CreateLogView("XENBLOCKS Logs", app)
 	xenblockActions := map[string]func(){
-		"Install": func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
+		"Install":      func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
+		"Start Mining": func() { xenblocks.StartMining(app, xenblockLogView, utils.LogMessage) },
 		// Add more actions as needed
 	}
 	xenblockConfigFlex := ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblockActions)
