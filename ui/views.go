@@ -21,13 +21,27 @@ func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextV
 		SetDirection(tview.FlexColumn)
 
 	if title == "Solana CLI" {
-		installButton := tview.NewButton("Install Solana CLI")
+		installButton := tview.NewButton("Install CLI")
 		installButton.SetSelectedFunc(func() {
 			installFunc(app, logView, utils.LogMessage)
 		})
 		configFlex.AddItem(installButton, 0, 1, false)
 	} else {
-		configFlex.AddItem(tview.NewButton("XENBLOCKS Config"), 0, 1, false)
+		installButton := tview.NewButton("Install Miner")
+		installButton.SetSelectedFunc(func() {
+			installFunc(app, logView, utils.LogMessage)
+		})
+		configFlex.AddItem(installButton, 0, 1, false)
+
+		// Add a spacer between buttons
+		configFlex.AddItem(tview.NewBox(), 0, 1, false)
+
+		// Add new Start/Stop Mining button
+		miningButton := tview.NewButton("Start Mining")
+		miningButton.SetSelectedFunc(func() {
+			//TODO
+		})
+		configFlex.AddItem(miningButton, 0, 1, false)
 	}
 
 	configFlex.AddItem(tview.NewBox(), 0, 1, false)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"xoon/utils"
@@ -131,7 +132,44 @@ func readAndLog(app *tview.Application, pipe io.Reader, logView *tview.TextView,
 }
 
 func addSolanaToPath(logMessage utils.LogMessageFunc, logView *tview.TextView) error {
-	// Implementation remains the same as in the original file
-	// ...
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logMessage(logView, fmt.Sprintf("Error getting user home directory: %v", err))
+		return err
+	}
+
+	profilePath := filepath.Join(homeDir, ".bashrc")
+	if _, err := os.Stat(profilePath); os.IsNotExist(err) {
+		profilePath = filepath.Join(homeDir, ".profile")
+	}
+
+	logMessage(logView, fmt.Sprintf("Using profile file: %s", profilePath))
+
+	solanaPath := fmt.Sprintf("export PATH=\"%s/.local/share/solana/install/active_release/bin:$PATH\"", homeDir)
+
+	content, err := os.ReadFile(profilePath)
+	if err != nil {
+		logMessage(logView, fmt.Sprintf("Error reading profile file: %v", err))
+		return err
+	}
+
+	if strings.Contains(string(content), solanaPath) {
+		logMessage(logView, "Solana path already exists in the profile. No changes made.")
+		return nil
+	}
+
+	f, err := os.OpenFile(profilePath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		logMessage(logView, fmt.Sprintf("Error opening profile file: %v", err))
+		return err
+	}
+	defer f.Close()
+
+	if _, err = f.WriteString("\n" + solanaPath + "\n"); err != nil {
+		logMessage(logView, fmt.Sprintf("Error writing to profile file: %v", err))
+		return err
+	}
+
+	logMessage(logView, "Solana path successfully added to the profile.")
 	return nil
 }

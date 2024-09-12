@@ -3,6 +3,7 @@ package main
 import (
 	"xoon/solana"
 	"xoon/ui"
+	"xoon/xenblocks"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -18,7 +19,7 @@ func main() {
 	solanaConfigFlex := ui.CreateConfigFlex("Solana CLI", app, solanaLogView, solana.InstallSolanaCLI)
 
 	xenblockLogView := ui.CreateLogView("XENBLOCKS Logs", app)
-	xenblockConfigFlex := ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, nil)
+	xenblockConfigFlex := ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblocks.InstallXENBLOCKS)
 
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
 
