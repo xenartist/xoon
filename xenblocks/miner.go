@@ -2,6 +2,7 @@ package xenblocks
 
 import (
 	"bufio"
+	"io"
 	"os/exec"
 	"xoon/utils"
 
@@ -13,10 +14,15 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 		// Create the command
 		cmd := exec.Command("./xenblocksMiner", "--minerAddr", "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823", "--totalDevFee", "1")
 
-		// Create a pipe for the output
+		// Create pipes for both stdout and stderr
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			logMessage(logView, "Error creating StdoutPipe: "+err.Error())
+			return
+		}
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			logMessage(logView, "Error creating StderrPipe: "+err.Error())
 			return
 		}
 
@@ -26,21 +32,30 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			return
 		}
 
-		// Create a scanner to read the output line by line
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Text()
-			// Use app.QueueUpdateDraw to update UI from goroutine
-			app.QueueUpdateDraw(func() {
-				logMessage(logView, line)
-			})
+		// Function to read from a pipe and send to UI
+		readPipe := func(pipe io.Reader) {
+			scanner := bufio.NewScanner(pipe)
+			for scanner.Scan() {
+				line := scanner.Text()
+				app.QueueUpdateDraw(func() {
+					logMessage(logView, line)
+				})
+			}
 		}
+
+		// Start goroutines to read from stdout and stderr
+		go readPipe(stdout)
+		go readPipe(stderr)
 
 		// Wait for the command to finish
 		if err := cmd.Wait(); err != nil {
-			logMessage(logView, "Miner exited with error: "+err.Error())
+			app.QueueUpdateDraw(func() {
+				logMessage(logView, "Miner exited with error: "+err.Error())
+			})
 		} else {
-			logMessage(logView, "Mining completed successfully")
+			app.QueueUpdateDraw(func() {
+				logMessage(logView, "Mining completed successfully")
+			})
 		}
 	}()
 }
