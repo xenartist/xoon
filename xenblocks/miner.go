@@ -49,42 +49,6 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 
 		logMessage(logView, "Debug: StartMining function called")
 
-		// updateMiningStatus := func(status string) {
-		// 	mutex.Lock()
-		// 	defer mutex.Unlock()
-		// 	now := time.Now()
-		// 	if status != lastMiningStatus && now.Sub(lastUpdateTime) >= time.Minute {
-		// 		lastMiningStatus = status
-		// 		lastUpdateTime = now
-		// 		app.QueueUpdateDraw(func() {
-		// 			currentText := logView.GetText(true)
-		// 			lines := strings.Split(currentText, "\n")
-		// 			if len(lines) > 0 {
-		// 				lastLine := lines[len(lines)-1]
-		// 				if strings.Contains(lastLine, "Mining:") {
-		// 					// Extract new values from status
-		// 					var hashes, duration, gpus, hashRate, difficulty string
-		// 					fmt.Sscanf(status, "Mining: %s Hashes [%s, %s GPUs, %s Hashes/s, Difficulty=%s]",
-		// 						&hashes, &duration, &gpus, &hashRate, &difficulty)
-
-		// 					// Update only the numeric values in the last line
-		// 					updatedLine := fmt.Sprintf("Mining: %s Hashes [%s, %s GPUs, %s Hashes/s, Difficulty=%s]",
-		// 						hashes, duration, gpus, hashRate, difficulty)
-
-		// 					lines[len(lines)-1] = updatedLine
-		// 					logView.SetText(strings.Join(lines, "\n"))
-		// 				} else {
-		// 					// If the last line is not a mining status, append a new line
-		// 					logMessage(logView, status)
-		// 				}
-		// 			} else {
-		// 				// If there are no lines, just log the new status
-		// 				logMessage(logView, status)
-		// 			}
-		// 		})
-		// 	}
-		// }
-
 		// Function to read from a pipe and send to UI
 		readPipe := func(pipe io.Reader) {
 			reader := bufio.NewReader(pipe)
@@ -113,7 +77,6 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 						line = strings.TrimSpace(line)
 						if line != "" {
 							if strings.Contains(line, "Mining:") {
-								//updateMiningStatus(line)
 								mutex.Lock()
 								now := time.Now()
 								if now.Sub(lastUpdateTime) >= time.Minute {
