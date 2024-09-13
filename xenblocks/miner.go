@@ -44,6 +44,11 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			scanner := bufio.NewScanner(pipe)
 			scanner.Split(bufio.ScanLines)
 
+			// Increase the buffer size
+			const maxCapacity = 1024 * 1024 // 1MB
+			buf := make([]byte, maxCapacity)
+			scanner.Buffer(buf, maxCapacity)
+
 			var lastLine string
 			var lastPrintedLine string
 			ticker := time.NewTicker(200 * time.Millisecond)
@@ -71,9 +76,15 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			}
 
 			if err := scanner.Err(); err != nil {
-				app.QueueUpdateDraw(func() {
-					logMessage(logView, "Error reading pipe: "+err.Error())
-				})
+				if err == bufio.ErrTooLong {
+					app.QueueUpdateDraw(func() {
+						logMessage(logView, "Error: Line too long to process")
+					})
+				} else {
+					app.QueueUpdateDraw(func() {
+						logMessage(logView, "Error reading pipe: "+err.Error())
+					})
+				}
 			}
 		}
 
