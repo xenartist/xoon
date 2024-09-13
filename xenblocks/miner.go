@@ -42,25 +42,46 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			return
 		}
 
-		var lastMiningStatus string
-		var mutex sync.Mutex
+		var (
+			lastMiningStatus string
+			lastUpdateTime   time.Time
+			mutex            sync.Mutex
+		)
 
 		logMessage(logView, "Debug: StartMining function called")
 
 		updateMiningStatus := func(status string) {
 			mutex.Lock()
 			defer mutex.Unlock()
-			if status != lastMiningStatus {
+			now := time.Now()
+			if status != lastMiningStatus && now.Sub(lastUpdateTime) >= time.Second {
 				lastMiningStatus = status
+				lastUpdateTime = now
 				app.QueueUpdateDraw(func() {
-					// Clear the last line if it was a mining status
 					currentText := logView.GetText(true)
 					lines := strings.Split(currentText, "\n")
-					if len(lines) > 0 && strings.Contains(lines[len(lines)-1], "Mining:") {
-						lines = lines[:len(lines)-1]
-						logView.SetText(strings.Join(lines, "\n"))
+					if len(lines) > 0 {
+						lastLine := lines[len(lines)-1]
+						if strings.Contains(lastLine, "Mining:") {
+							// Extract new values from status
+							var hashes, duration, gpus, hashRate, difficulty string
+							fmt.Sscanf(status, "Mining: %s Hashes [%s, %s GPUs, %s Hashes/s, Difficulty=%s]",
+								&hashes, &duration, &gpus, &hashRate, &difficulty)
+
+							// Update only the numeric values in the last line
+							updatedLine := fmt.Sprintf("Mining: %s Hashes [%s, %s GPUs, %s Hashes/s, Difficulty=%s]",
+								hashes, duration, gpus, hashRate, difficulty)
+
+							lines[len(lines)-1] = updatedLine
+							logView.SetText(strings.Join(lines, "\n"))
+						} else {
+							// If the last line is not a mining status, append a new line
+							logMessage(logView, status)
+						}
+					} else {
+						// If there are no lines, just log the new status
+						logMessage(logView, status)
 					}
-					logMessage(logView, "Mining status update: "+status)
 				})
 			}
 		}
@@ -77,7 +98,7 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 				if err != nil {
 					if err == io.EOF {
 						logMessage(logView, "Debug: EOF reached, waiting...")
-						time.Sleep(1000 * time.Millisecond)
+						time.Sleep(100 * time.Millisecond)
 						continue
 					}
 					logMessage(logView, fmt.Sprintf("Error reading pipe: %v", err))
