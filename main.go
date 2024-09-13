@@ -47,16 +47,18 @@ func main() {
 		AddItem(rightFlex, 0, 3, false)
 
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		now := time.Now()
-		if now.Sub(lastQuitTime) > time.Second {
-			quitCount = 1
-		} else {
-			quitCount++
-		}
-		lastQuitTime = now
-		if quitCount >= 4 {
-			app.Stop()
-			return nil
+		if event.Rune() == 'q' {
+			now := time.Now()
+			if now.Sub(lastQuitTime) > time.Second {
+				quitCount = 1
+			} else {
+				quitCount++
+			}
+			lastQuitTime = now
+			if quitCount >= 4 {
+				app.Stop()
+				return nil
+			}
 		}
 		return event
 	})
