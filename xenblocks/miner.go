@@ -2,9 +2,12 @@ package xenblocks
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os/exec"
 	"runtime"
+	"strings"
+	"sync"
 	"time"
 	"xoon/utils"
 
@@ -39,51 +42,55 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			return
 		}
 
+		var (
+			lastUpdateTime time.Time
+			mutex          sync.Mutex
+		)
+
+		logMessage(logView, "Debug: StartMining function called")
+
 		// Function to read from a pipe and send to UI
 		readPipe := func(pipe io.Reader) {
-			scanner := bufio.NewScanner(pipe)
-			scanner.Split(bufio.ScanLines)
+			reader := bufio.NewReader(pipe)
+			buffer := make([]byte, 1024)
 
-			// Increase the buffer size
-			const maxCapacity = 1024 * 1024 // 1MB
-			buf := make([]byte, maxCapacity)
-			scanner.Buffer(buf, maxCapacity)
+			logMessage(logView, "Debug: Starting to read pipe")
 
-			var lastLine string
-			var lastPrintedLine string
-			ticker := time.NewTicker(200 * time.Millisecond)
-			defer ticker.Stop()
-
-			go func() {
-				for range ticker.C {
-					if lastLine != "" && lastLine != lastPrintedLine {
-						app.QueueUpdateDraw(func() {
-							logMessage(logView, "Current status: "+lastLine)
-						})
-						lastPrintedLine = lastLine
+			for {
+				n, err := reader.Read(buffer)
+				if err != nil {
+					if err == io.EOF {
+						logMessage(logView, "Debug: EOF reached, waiting...")
+						time.Sleep(100 * time.Millisecond)
+						continue
 					}
+					logMessage(logView, fmt.Sprintf("Error reading pipe: %v", err))
+					break
 				}
-			}()
 
-			for scanner.Scan() {
-				line := scanner.Text()
-				if line != lastLine {
-					lastLine = line
-					app.QueueUpdateDraw(func() {
-						logMessage(logView, line)
-					})
-				}
-			}
+				if n > 0 {
+					output := string(buffer[:n])
+					//logMessage(logView, fmt.Sprintf("Debug: Read %d bytes", n))
 
-			if err := scanner.Err(); err != nil {
-				if err == bufio.ErrTooLong {
-					app.QueueUpdateDraw(func() {
-						logMessage(logView, "Error: Line too long to process")
-					})
+					lines := strings.Split(output, "\n")
+					for _, line := range lines {
+						line = strings.TrimSpace(line)
+						if line != "" {
+							if strings.Contains(line, "Mining:") {
+								mutex.Lock()
+								now := time.Now()
+								if now.Sub(lastUpdateTime) >= time.Minute {
+									lastUpdateTime = now
+									logMessage(logView, line)
+								}
+								mutex.Unlock()
+							} else {
+								logMessage(logView, line)
+							}
+						}
+					}
 				} else {
-					app.QueueUpdateDraw(func() {
-						logMessage(logView, "Error reading pipe: "+err.Error())
-					})
+					logMessage(logView, "Debug: No data read")
 				}
 			}
 		}
