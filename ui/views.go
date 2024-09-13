@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"xoon/utils"
-
 	"github.com/rivo/tview"
 )
 
@@ -27,7 +25,7 @@ func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextV
 				// Wrap the action with logging functionality
 				action()
 				app.QueueUpdateDraw(func() {
-					utils.LogMessage(logView, "Action '"+actionName+"' triggered")
+					//	utils.LogMessage(logView, "Action '"+actionName+"' triggered")//temp disabled
 				})
 			}(actionFunc)
 		})
