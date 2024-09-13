@@ -77,7 +77,7 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 				if err != nil {
 					if err == io.EOF {
 						logMessage(logView, "Debug: EOF reached, waiting...")
-						time.Sleep(100 * time.Millisecond)
+						time.Sleep(1000 * time.Millisecond)
 						continue
 					}
 					logMessage(logView, fmt.Sprintf("Error reading pipe: %v", err))
