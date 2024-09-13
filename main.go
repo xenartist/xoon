@@ -29,29 +29,27 @@ func main() {
 	solanaConfigFlex := ui.CreateConfigFlex("Solana CLI", app, solanaLogView, solanaActions)
 
 	//XENBLOCKS
-	xenblockLogView := ui.CreateDynamicLogView("XENBLOCKS Logs", app, 1000)
+	xenblockLogView := ui.CreateLogView("XENBLOCKS Logs", app)
 	var xenblockConfigFlex *tview.Flex // Declare xenblockConfigFlex here
 	xenblockActions := map[string]func(){
-		"Install": func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView.TextView, utils.LogMessage) },
+		"Install": func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
 		"Start Mining": func() {
 			if !xenblocks.IsMining() {
-				xenblocks.StartMining(app, xenblockLogView.TextView, utils.LogMessage)
+				xenblocks.StartMining(app, xenblockLogView, utils.LogMessage)
 				ui.UpdateButtonLabel(xenblockConfigFlex, "Start Mining", "Stop Mining")
 			} else {
-				xenblocks.StopMining(app, xenblockLogView.TextView, utils.LogMessage)
+				xenblocks.StopMining(app, xenblockLogView, utils.LogMessage)
 				ui.UpdateButtonLabel(xenblockConfigFlex, "Stop Mining", "Start Mining")
 			}
 		},
 		// Add more actions as needed
 	}
-	xenblockConfigFlex = ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView.TextView, xenblockActions)
+	xenblockConfigFlex = ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblockActions)
 
 	//
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
 
-	ui.SetupMenuItemSelection(mainMenu, switchView,
-		solanaConfigFlex, xenblockConfigFlex,
-		solanaLogView, xenblockLogView.TextView)
+	ui.SetupMenuItemSelection(mainMenu, switchView, solanaConfigFlex, xenblockConfigFlex, solanaLogView, xenblockLogView)
 
 	mainFlex := tview.NewFlex().
 		AddItem(mainMenu, 0, 1, true).

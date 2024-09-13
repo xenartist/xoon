@@ -1,67 +1,10 @@
 package ui
 
 import (
-	"strings"
-	"sync"
+	"xoon/utils"
 
 	"github.com/rivo/tview"
 )
-
-type DynamicLogView struct {
-	*tview.TextView
-	lines    []string
-	mutex    sync.Mutex
-	app      *tview.Application
-	maxLines int
-}
-
-func CreateDynamicLogView(title string, app *tview.Application, maxLines int) *DynamicLogView {
-	logView := &DynamicLogView{
-		TextView: tview.NewTextView().SetDynamicColors(true),
-		lines:    make([]string, 0),
-		app:      app,
-		maxLines: maxLines,
-	}
-	logView.SetBorder(true).SetTitle(title)
-	return logView
-}
-
-func (d *DynamicLogView) Write(p []byte) (n int, err error) {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
-
-	text := string(p)
-	lines := strings.Split(text, "\n")
-
-	for _, line := range lines {
-		if strings.Contains(line, "\r") {
-			// This is likely a progress update
-			parts := strings.Split(line, "\r")
-			if len(d.lines) > 0 {
-				d.lines[len(d.lines)-1] = parts[len(parts)-1]
-			} else {
-				d.lines = append(d.lines, parts[len(parts)-1])
-			}
-		} else {
-			// Regular log line
-			d.lines = append(d.lines, line)
-		}
-	}
-
-	// Trim old lines if exceeding maxLines
-	if len(d.lines) > d.maxLines {
-		d.lines = d.lines[len(d.lines)-d.maxLines:]
-	}
-
-	d.app.QueueUpdateDraw(func() {
-		d.Clear()
-		for _, line := range d.lines {
-			d.TextView.Write([]byte(line + "\n"))
-		}
-	})
-
-	return len(p), nil
-}
 
 func CreateLogView(title string, app *tview.Application) *tview.TextView {
 	logView := tview.NewTextView().
@@ -84,7 +27,7 @@ func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextV
 				// Wrap the action with logging functionality
 				action()
 				app.QueueUpdateDraw(func() {
-					//utils.LogMessage(logView, "Action '"+actionName+"' triggered")//temp disable
+					utils.LogMessage(logView, "Action '"+actionName+"' triggered")
 				})
 			}(actionFunc)
 		})
