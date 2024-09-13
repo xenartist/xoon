@@ -50,3 +50,15 @@ func CreateSwitchViewFunc(rightFlex *tview.Flex, mainMenu *tview.List) func(*tvi
 		mainMenu.SetCurrentItem(0)
 	}
 }
+
+func UpdateButtonLabel(flex *tview.Flex, buttonName string, newLabel string) {
+	for i := 0; i < flex.GetItemCount(); i++ {
+		item := flex.GetItem(i)
+		if button, ok := item.(*tview.Button); ok {
+			if button.GetLabel() == buttonName {
+				button.SetLabel(newLabel)
+				return
+			}
+		}
+	}
+}

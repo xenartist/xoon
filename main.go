@@ -30,12 +30,21 @@ func main() {
 
 	//XENBLOCKS
 	xenblockLogView := ui.CreateLogView("XENBLOCKS Logs", app)
+	var xenblockConfigFlex *tview.Flex // Declare xenblockConfigFlex here
 	xenblockActions := map[string]func(){
-		"Install":      func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
-		"Start Mining": func() { xenblocks.StartMining(app, xenblockLogView, utils.LogMessage) },
+		"Install": func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
+		"Start Mining": func() {
+			if !xenblocks.IsMining() {
+				xenblocks.StartMining(app, xenblockLogView, utils.LogMessage)
+				ui.UpdateButtonLabel(xenblockConfigFlex, "Start Mining", "Stop Mining")
+			} else {
+				xenblocks.StopMining(app, xenblockLogView, utils.LogMessage)
+				ui.UpdateButtonLabel(xenblockConfigFlex, "Stop Mining", "Start Mining")
+			}
+		},
 		// Add more actions as needed
 	}
-	xenblockConfigFlex := ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblockActions)
+	xenblockConfigFlex = ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblockActions)
 
 	//
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)

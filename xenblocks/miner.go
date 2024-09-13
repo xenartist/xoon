@@ -11,7 +11,12 @@ import (
 	"github.com/rivo/tview"
 )
 
+var isMining bool = false
+
 func StartMining(app *tview.Application, logView *tview.TextView, logMessage utils.LogMessageFunc) {
+
+	isMining = true
+
 	go func() {
 		// Create the command
 		cmd := exec.Command("./xenblocksMiner", "--minerAddr", "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823", "--totalDevFee", "1", "--execute")
@@ -73,6 +78,12 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 	}()
 }
 
+func StopMining(app *tview.Application, logView *tview.TextView, logMessage utils.LogMessageFunc) {
+	KillMiningProcess()
+	logMessage(logView, "Mining stopped")
+	isMining = false
+}
+
 // KillMiningProcess stops all running xenblocksMiner processes
 func KillMiningProcess() {
 	var cmd *exec.Cmd
@@ -82,4 +93,9 @@ func KillMiningProcess() {
 		cmd = exec.Command("pkill", "-f", "xenblocksMiner")
 	}
 	_ = cmd.Run()
+}
+
+// IsMining returns the current mining status
+func IsMining() bool {
+	return isMining
 }
