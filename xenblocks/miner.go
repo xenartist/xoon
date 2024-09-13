@@ -45,25 +45,29 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			scanner.Split(bufio.ScanLines)
 
 			var lastLine string
+			var lastPrintedLine string
 			ticker := time.NewTicker(200 * time.Millisecond)
 			defer ticker.Stop()
 
 			go func() {
 				for range ticker.C {
-					if lastLine != "" {
+					if lastLine != "" && lastLine != lastPrintedLine {
 						app.QueueUpdateDraw(func() {
 							logMessage(logView, "Current status: "+lastLine)
 						})
+						lastPrintedLine = lastLine
 					}
 				}
 			}()
 
 			for scanner.Scan() {
 				line := scanner.Text()
-				lastLine = line
-				app.QueueUpdateDraw(func() {
-					logMessage(logView, line)
-				})
+				if line != lastLine {
+					lastLine = line
+					app.QueueUpdateDraw(func() {
+						logMessage(logView, line)
+					})
+				}
 			}
 
 			if err := scanner.Err(); err != nil {
