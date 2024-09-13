@@ -26,25 +26,8 @@ func main() {
 		AddItem(mainMenu, 0, 1, true).
 		AddItem(rightFlex, 0, 3, false)
 
-	//Press q 4 times to quit this app
+	//input capture, eg. press 4 times q to quit
 	ui.SetupInputCapture(app)
-	// app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-	// 	if event.Rune() == 'q' {
-	// 		now := time.Now()
-	// 		if now.Sub(lastQuitTime) > time.Second {
-	// 			quitCount = 1
-	// 		} else {
-	// 			quitCount++
-	// 		}
-	// 		lastQuitTime = now
-	// 		if quitCount >= 4 {
-	// 			xenblocks.KillMiningProcess() // Kill the mining process before exiting
-	// 			app.Stop()
-	// 			return nil
-	// 		}
-	// 	}
-	// 	return event
-	// })
 
 	if err := app.SetRoot(mainFlex, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
