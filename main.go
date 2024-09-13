@@ -2,9 +2,7 @@ package main
 
 import (
 	"time"
-	"xoon/solana"
 	"xoon/ui"
-	"xoon/utils"
 	"xoon/xenblocks"
 
 	"github.com/gdamore/tcell/v2"
@@ -19,37 +17,43 @@ func main() {
 	mainMenu := ui.CreateMainMenu()
 	rightFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	//Solana CLI
-	solanaLogView := ui.CreateLogView("Solana CLI Logs", app)
-	solanaActions := map[string]func(){
-		"Install": func() { solana.InstallSolanaCLI(app, solanaLogView, utils.LogMessage) },
-		"Airdrop": func() { solana.Airdrop(app, solanaLogView, utils.LogMessage) },
-		// Add more actions as needed
-	}
-	solanaConfigFlex := ui.CreateConfigFlex("Solana CLI", app, solanaLogView, solanaActions)
+	solanaUI := ui.CreateSolanaUI(app)
+	xenblocksUI := ui.CreateXenblocksUI(app)
 
-	//XENBLOCKS
-	xenblockLogView := ui.CreateLogView("XENBLOCKS Logs", app)
-	var xenblockConfigFlex *tview.Flex // Declare xenblockConfigFlex here
-	xenblockActions := map[string]func(){
-		"Install": func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
-		"Start Mining": func() {
-			if !xenblocks.IsMining() {
-				xenblocks.StartMining(app, xenblockLogView, utils.LogMessage)
-				ui.UpdateButtonLabel(xenblockConfigFlex, "Start Mining", "Stop Mining")
-			} else {
-				xenblocks.StopMining(app, xenblockLogView, utils.LogMessage)
-				ui.UpdateButtonLabel(xenblockConfigFlex, "Stop Mining", "Start Mining")
-			}
-		},
-		// Add more actions as needed
-	}
-	xenblockConfigFlex = ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblockActions)
+	// //Solana CLI
+	// solanaLogView := ui.CreateLogView("Solana CLI Logs", app)
+	// solanaActions := map[string]func(){
+	// 	"Install": func() { solana.InstallSolanaCLI(app, solanaLogView, utils.LogMessage) },
+	// 	"Airdrop": func() { solana.Airdrop(app, solanaLogView, utils.LogMessage) },
+	// 	// Add more actions as needed
+	// }
+	// solanaConfigFlex := ui.CreateConfigFlex("Solana CLI", app, solanaLogView, solanaActions)
+
+	// //XENBLOCKS
+	// xenblockLogView := ui.CreateLogView("XENBLOCKS Logs", app)
+	// var xenblockConfigFlex *tview.Flex // Declare xenblockConfigFlex here
+	// xenblockActions := map[string]func(){
+	// 	"Install": func() { xenblocks.InstallXENBLOCKS(app, xenblockLogView, utils.LogMessage) },
+	// 	"Start Mining": func() {
+	// 		if !xenblocks.IsMining() {
+	// 			xenblocks.StartMining(app, xenblockLogView, utils.LogMessage)
+	// 			ui.UpdateButtonLabel(xenblockConfigFlex, "Start Mining", "Stop Mining")
+	// 		} else {
+	// 			xenblocks.StopMining(app, xenblockLogView, utils.LogMessage)
+	// 			ui.UpdateButtonLabel(xenblockConfigFlex, "Stop Mining", "Start Mining")
+	// 		}
+	// 	},
+	// 	// Add more actions as needed
+	// }
+	// xenblockConfigFlex = ui.CreateConfigFlex("XENBLOCKS", app, xenblockLogView, xenblockActions)
 
 	//
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
 
-	ui.SetupMenuItemSelection(mainMenu, switchView, solanaConfigFlex, xenblockConfigFlex, solanaLogView, xenblockLogView)
+	//ui.SetupMenuItemSelection(mainMenu, switchView, solanaConfigFlex, xenblockConfigFlex, solanaLogView, xenblockLogView)
+	ui.SetupMenuItemSelection(mainMenu, switchView,
+		solanaUI.ConfigFlex, xenblocksUI.ConfigFlex,
+		solanaUI.LogView, xenblocksUI.LogView)
 
 	mainFlex := tview.NewFlex().
 		AddItem(mainMenu, 0, 1, true).
