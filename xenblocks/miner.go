@@ -2,6 +2,7 @@ package xenblocks
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os/exec"
 	"runtime"
@@ -43,35 +44,39 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 		// Function to read from a pipe and send to UI
 		readPipe := func(pipe io.Reader) {
 			reader := bufio.NewReader(pipe)
-			var lastMiningStatus string
+			buffer := make([]byte, 1024)
+
+			logMessage(logView, "Debug: Starting to read pipe")
 
 			for {
-				line, err := reader.ReadString('\n')
+				n, err := reader.Read(buffer)
 				if err != nil {
-					if err != io.EOF {
-						app.QueueUpdateDraw(func() {
-							logMessage(logView, "Error reading pipe: "+err.Error())
-						})
+					if err == io.EOF {
+						logMessage(logView, "Debug: EOF reached, waiting...")
+						time.Sleep(100 * time.Millisecond)
+						continue
 					}
-					time.Sleep(100 * time.Millisecond)
-					continue
+					logMessage(logView, fmt.Sprintf("Error reading pipe: %v", err))
+					break
 				}
 
-				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "Mining:") {
-					if line != lastMiningStatus {
-						lastMiningStatus = line
-						app.QueueUpdateDraw(func() {
+				if n > 0 {
+					output := string(buffer[:n])
+					logMessage(logView, fmt.Sprintf("Debug: Read %d bytes", n))
+
+					lines := strings.Split(output, "\n")
+					for _, line := range lines {
+						line = strings.TrimSpace(line)
+						if line != "" {
 							logMessage(logView, line)
-						})
+						}
 					}
 				} else {
-					app.QueueUpdateDraw(func() {
-						logMessage(logView, line)
-					})
+					logMessage(logView, "Debug: No data read")
 				}
 			}
 		}
+
 		// Start goroutines to read from stdout and stderr
 		go readPipe(stdout)
 		go readPipe(stderr)
