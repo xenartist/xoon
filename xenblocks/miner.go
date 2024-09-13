@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 	"xoon/utils"
 
@@ -41,6 +42,29 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			return
 		}
 
+		var lastMiningStatus string
+		var mutex sync.Mutex
+
+		logMessage(logView, "Debug: StartMining function called")
+
+		updateMiningStatus := func(status string) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			if status != lastMiningStatus {
+				lastMiningStatus = status
+				app.QueueUpdateDraw(func() {
+					// Clear the last line if it was a mining status
+					currentText := logView.GetText(true)
+					lines := strings.Split(currentText, "\n")
+					if len(lines) > 0 && strings.Contains(lines[len(lines)-1], "Mining:") {
+						lines = lines[:len(lines)-1]
+						logView.SetText(strings.Join(lines, "\n"))
+					}
+					logMessage(logView, "Mining status update: "+status)
+				})
+			}
+		}
+
 		// Function to read from a pipe and send to UI
 		readPipe := func(pipe io.Reader) {
 			reader := bufio.NewReader(pipe)
@@ -68,7 +92,11 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 					for _, line := range lines {
 						line = strings.TrimSpace(line)
 						if line != "" {
-							logMessage(logView, line)
+							if strings.Contains(line, "Mining:") {
+								updateMiningStatus(line)
+							} else {
+								logMessage(logView, line)
+							}
 						}
 					}
 				} else {
