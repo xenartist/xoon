@@ -107,7 +107,7 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 
 				if n > 0 {
 					output := string(buffer[:n])
-					logMessage(logView, fmt.Sprintf("Debug: Read %d bytes", n))
+					//logMessage(logView, fmt.Sprintf("Debug: Read %d bytes", n))
 
 					lines := strings.Split(output, "\n")
 					for _, line := range lines {
