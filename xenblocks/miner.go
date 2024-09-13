@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"os/exec"
+	"strings"
 	"xoon/utils"
 
 	"github.com/rivo/tview"
@@ -34,12 +35,23 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 
 		// Function to read from a pipe and send to UI
 		readPipe := func(pipe io.Reader) {
-			scanner := bufio.NewScanner(pipe)
-			for scanner.Scan() {
-				line := scanner.Text()
-				app.QueueUpdateDraw(func() {
-					logMessage(logView, line)
-				})
+			reader := bufio.NewReader(pipe)
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					if err != io.EOF {
+						app.QueueUpdateDraw(func() {
+							logMessage(logView, "Error reading pipe: "+err.Error())
+						})
+					}
+					break
+				}
+				line = strings.TrimSpace(line)
+				if line != "" {
+					app.QueueUpdateDraw(func() {
+						logMessage(logView, line)
+					})
+				}
 			}
 		}
 
