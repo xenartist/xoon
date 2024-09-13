@@ -54,7 +54,7 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			mutex.Lock()
 			defer mutex.Unlock()
 			now := time.Now()
-			if status != lastMiningStatus && now.Sub(lastUpdateTime) >= time.Second {
+			if status != lastMiningStatus && now.Sub(lastUpdateTime) >= time.Minute {
 				lastMiningStatus = status
 				lastUpdateTime = now
 				app.QueueUpdateDraw(func() {
