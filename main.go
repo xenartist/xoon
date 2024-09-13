@@ -1,6 +1,7 @@
 package main
 
 import (
+	"time"
 	"xoon/solana"
 	"xoon/ui"
 	"xoon/utils"
@@ -12,6 +13,8 @@ import (
 
 func main() {
 	app := tview.NewApplication()
+	var quitCount int
+	var lastQuitTime time.Time
 
 	mainMenu := ui.CreateMainMenu()
 	rightFlex := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -44,7 +47,14 @@ func main() {
 		AddItem(rightFlex, 0, 3, false)
 
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyF10 && event.Modifiers() == tcell.ModCtrl {
+		now := time.Now()
+		if now.Sub(lastQuitTime) > time.Second {
+			quitCount = 1
+		} else {
+			quitCount++
+		}
+		lastQuitTime = now
+		if quitCount >= 4 {
 			app.Stop()
 			return nil
 		}

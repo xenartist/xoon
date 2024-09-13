@@ -9,7 +9,7 @@ func CreateMainMenu() *tview.List {
 		AddItem("XOON!(Two Weeks)", "", 0, nil).
 		AddItem("Solana CLI", "", 'a', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
-		AddItem("QUIT", "Ctrl+F10 to Quit", 0, nil)
+		AddItem("QUIT", "Press 'q' 4 times", 'q', nil)
 
 	mainMenu.SetBorder(true).SetTitle("xoon")
 	return mainMenu

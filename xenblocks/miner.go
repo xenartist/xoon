@@ -13,7 +13,7 @@ import (
 func StartMining(app *tview.Application, logView *tview.TextView, logMessage utils.LogMessageFunc) {
 	go func() {
 		// Create the command
-		cmd := exec.Command("./xenblocksMiner", "--minerAddr", "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823", "--totalDevFee", "1", "--execute")
+		cmd := exec.Command("./xenblocksMiner", "--minerAddr", "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823", "--totalDevFee", "1")
 
 		// Create pipes for both stdout and stderr
 		stdout, err := cmd.StdoutPipe()
