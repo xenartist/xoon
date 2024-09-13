@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"os/exec"
+	"runtime"
 	"strings"
 	"xoon/utils"
 
@@ -70,4 +71,15 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			})
 		}
 	}()
+}
+
+// KillMiningProcess stops all running xenblocksMiner processes
+func KillMiningProcess() {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("taskkill", "/F", "/IM", "xenblocksMiner*")
+	} else {
+		cmd = exec.Command("pkill", "-f", "xenblocksMiner")
+	}
+	_ = cmd.Run()
 }

@@ -56,6 +56,7 @@ func main() {
 			}
 			lastQuitTime = now
 			if quitCount >= 4 {
+				xenblocks.KillMiningProcess() // Kill the mining process before exiting
 				app.Stop()
 				return nil
 			}
