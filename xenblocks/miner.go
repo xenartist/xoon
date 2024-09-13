@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 	"xoon/utils"
 
 	"github.com/rivo/tview"
@@ -42,6 +43,8 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 		// Function to read from a pipe and send to UI
 		readPipe := func(pipe io.Reader) {
 			reader := bufio.NewReader(pipe)
+			var lastMiningStatus string
+
 			for {
 				line, err := reader.ReadString('\n')
 				if err != nil {
@@ -50,17 +53,25 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 							logMessage(logView, "Error reading pipe: "+err.Error())
 						})
 					}
-					break
+					time.Sleep(100 * time.Millisecond)
+					continue
 				}
+
 				line = strings.TrimSpace(line)
-				if line != "" {
+				if strings.HasPrefix(line, "Mining:") {
+					if line != lastMiningStatus {
+						lastMiningStatus = line
+						app.QueueUpdateDraw(func() {
+							logMessage(logView, line)
+						})
+					}
+				} else {
 					app.QueueUpdateDraw(func() {
 						logMessage(logView, line)
 					})
 				}
 			}
 		}
-
 		// Start goroutines to read from stdout and stderr
 		go readPipe(stdout)
 		go readPipe(stderr)
