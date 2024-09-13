@@ -15,7 +15,7 @@ func main() {
 	solanaUI := ui.CreateSolanaUI(app)
 	xenblocksUI := ui.CreateXenblocksUI(app)
 
-	//
+	//click items in mainmenu to swith views
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
 
 	ui.SetupMenuItemSelection(mainMenu, switchView,
