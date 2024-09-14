@@ -20,7 +20,7 @@ func CreateMainMenu() *tview.List {
 	return mainMenu
 }
 
-func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *tview.TextView), modules []ModuleUI) {
+func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *tview.Flex, *tview.TextView), modules []ModuleUI) {
 
 	moduleMap := make(map[string]ModuleUI)
 	for i, module := range modules {
@@ -30,7 +30,7 @@ func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *
 
 	mainMenu.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if module, ok := moduleMap[mainText]; ok {
-			switchView(module.ConfigFlex, module.LogView)
+			switchView(module.DashboardFlex, module.ConfigFlex, module.LogView)
 		}
 	})
 }

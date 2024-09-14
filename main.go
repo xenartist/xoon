@@ -19,8 +19,16 @@ func main() {
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
 
 	modules := []ui.ModuleUI{
-		{ConfigFlex: solanaUI.ConfigFlex, LogView: solanaUI.LogView},
-		{ConfigFlex: xenblocksUI.ConfigFlex, LogView: xenblocksUI.LogView},
+		{
+			DashboardFlex: solanaUI.DashboardFlex,
+			ConfigFlex:    solanaUI.ConfigFlex,
+			LogView:       solanaUI.LogView,
+		},
+		{
+			DashboardFlex: xenblocksUI.DashboardFlex,
+			ConfigFlex:    xenblocksUI.ConfigFlex,
+			LogView:       xenblocksUI.LogView,
+		},
 	}
 
 	ui.SetupMenuItemSelection(mainMenu, switchView, modules)

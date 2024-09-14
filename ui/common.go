@@ -9,17 +9,32 @@ import (
 var ModuleNames = []string{"Solana CLI", "XENBLOCKS"}
 
 type ModuleUI struct {
-	LogView    *tview.TextView
-	ConfigFlex *tview.Flex
+	DashboardFlex *tview.Flex
+	LogView       *tview.TextView
+	ConfigFlex    *tview.Flex
 }
 
 func CreateModuleUI(name string, app *tview.Application, actions map[string]func()) ModuleUI {
 	logView := CreateLogView(name+" Logs", app)
 	configFlex := CreateConfigFlex(name, app, logView, actions)
+	dashboardFlex := CreateDashboardFlex(name, app)
 	return ModuleUI{
-		LogView:    logView,
-		ConfigFlex: configFlex,
+		DashboardFlex: dashboardFlex,
+		LogView:       logView,
+		ConfigFlex:    configFlex,
 	}
+}
+
+func CreateDashboardFlex(title string, app *tview.Application) *tview.Flex {
+	dashboardFlex := tview.NewFlex().
+		SetDirection(tview.FlexColumn)
+
+	// Add placeholder text for now
+	placeholder := tview.NewTextView().SetText("Dashboard for " + title)
+	dashboardFlex.AddItem(placeholder, 0, 1, false)
+
+	dashboardFlex.SetBorder(true).SetTitle(title + " Dashboard")
+	return dashboardFlex
 }
 
 func CreateLogView(title string, app *tview.Application) *tview.TextView {
@@ -58,10 +73,11 @@ func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextV
 	return configFlex
 }
 
-func CreateSwitchViewFunc(rightFlex *tview.Flex, mainMenu *tview.List) func(*tview.Flex, *tview.TextView) {
-	return func(configFlex *tview.Flex, logView *tview.TextView) {
+func CreateSwitchViewFunc(rightFlex *tview.Flex, mainMenu *tview.List) func(*tview.Flex, *tview.Flex, *tview.TextView) {
+	return func(dashboardFlex *tview.Flex, configFlex *tview.Flex, logView *tview.TextView) {
 		rightFlex.Clear()
 		rightFlex.
+			AddItem(dashboardFlex, 3, 0, false).
 			AddItem(configFlex, 3, 0, false).
 			AddItem(logView, 0, 1, false)
 		mainMenu.SetCurrentItem(0)
