@@ -19,13 +19,13 @@ func CreateMainMenu() *tview.List {
 	return mainMenu
 }
 
-func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *tview.TextView), solanaConfigFlex, xenblockConfigFlex *tview.Flex, solanaLogView, xenblockLogView *tview.TextView) {
+func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *tview.TextView), solanaUI, xenblocksUI ModuleUI) {
 	mainMenu.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		switch mainText {
 		case "Solana CLI":
-			switchView(solanaConfigFlex, solanaLogView)
+			switchView(solanaUI.ConfigFlex, solanaUI.LogView)
 		case "XENBLOCKS":
-			switchView(xenblockConfigFlex, xenblockLogView)
+			switchView(xenblocksUI.ConfigFlex, xenblocksUI.LogView)
 		}
 	})
 }
