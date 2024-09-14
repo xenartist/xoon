@@ -45,8 +45,8 @@ func isXENBLOCKSInstalled(logView *tview.TextView, logMessage utils.LogMessageFu
 }
 
 func downloadXENBLOCKS(logView *tview.TextView, logMessage utils.LogMessageFunc) (string, error) {
-	url := "https://github.com/woodysoil/XenblocksMiner/releases/download/v1.3.1/xenblocksMiner-1.3.1-Linux.tar.gz"
-	fileName := "xenblocksMiner-1.3.1-Linux.tar.gz"
+	url := "https://github.com/woodysoil/XenblocksMiner/releases/download/v1.4.0/xenblocksMiner-1.4.0-Linux.tar.gz"
+	fileName := "xenblocksMiner-1.4.0-Linux.tar.gz"
 
 	// Get the current working directory
 	cwd, err := os.Getwd()
