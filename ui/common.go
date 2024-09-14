@@ -77,8 +77,10 @@ func CreateSwitchViewFunc(rightFlex *tview.Flex, mainMenu *tview.List) func(*tvi
 	return func(dashboardFlex *tview.Flex, configFlex *tview.Flex, logView *tview.TextView) {
 		rightFlex.Clear()
 		rightFlex.
-			AddItem(dashboardFlex, 3, 0, false).
-			AddItem(configFlex, 3, 0, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(dashboardFlex, 0, 1, false).
+				AddItem(configFlex, 0, 1, false),
+				0, 1, false).
 			AddItem(logView, 0, 1, false)
 		mainMenu.SetCurrentItem(0)
 	}
