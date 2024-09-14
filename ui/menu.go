@@ -24,7 +24,6 @@ func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *
 
 	moduleMap := make(map[string]ModuleUI)
 	for i, module := range modules {
-		// 假设我们有一个获取模块名称的函数
 		moduleName := getModuleName(i)
 		moduleMap[moduleName] = module
 	}
