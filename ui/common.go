@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"xoon/utils"
-
 	"github.com/rivo/tview"
 )
 
@@ -14,9 +12,9 @@ type ModuleUI struct {
 	ConfigFlex    *tview.Flex
 }
 
-func CreateModuleUI(name string, app *tview.Application, actions map[string]func()) ModuleUI {
+func CreateModuleUI(name string, app *tview.Application) ModuleUI {
 	logView := CreateLogView(name+" Logs", app)
-	configFlex := CreateConfigFlex(name, app, logView, actions)
+	configFlex := CreateConfigFlex(name, app, logView)
 	dashboardFlex := CreateDashboardFlex(name, app)
 	return ModuleUI{
 		DashboardFlex: dashboardFlex,
@@ -48,26 +46,42 @@ func CreateLogView(title string, app *tview.Application) *tview.TextView {
 	return logView
 }
 
-func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextView, actions map[string]func()) *tview.Flex {
-	configFlex := tview.NewFlex().
-		SetDirection(tview.FlexColumn)
+func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextView) *tview.Flex {
+	// configFlex := tview.NewFlex().
+	// 	SetDirection(tview.FlexColumn)
 
-	for actionName, actionFunc := range actions {
-		button := tview.NewButton(actionName)
-		button.SetSelectedFunc(func() {
-			go func(action func()) {
-				// Wrap the action with logging functionality
-				action()
-				app.QueueUpdateDraw(func() {
-					utils.LogMessage(logView, "Action '"+actionName+"' triggered")
-				})
-			}(actionFunc)
-		})
-		configFlex.AddItem(button, 0, 1, false)
+	// for actionName, actionFunc := range actions {
+	// 	button := tview.NewButton(actionName)
+	// 	button.SetSelectedFunc(func() {
+	// 		go func(action func()) {
+	// 			// Wrap the action with logging functionality
+	// 			action()
+	// 			app.QueueUpdateDraw(func() {
+	// 				utils.LogMessage(logView, "Action '"+actionName+"' triggered")
+	// 			})
+	// 		}(actionFunc)
+	// 	})
+	// 	configFlex.AddItem(button, 0, 1, false)
 
-		// Add a spacer between buttons
-		configFlex.AddItem(tview.NewBox(), 0, 1, false)
+	// 	// Add a spacer between buttons
+	// 	configFlex.AddItem(tview.NewBox(), 0, 1, false)
+	// }
+
+	// configFlex.SetBorder(true).SetTitle(title + " Config")
+	// return configFlex
+
+	switch title {
+	case "XENBLOCKS":
+		return CreateXenblocksConfigFlex(app, logView)
+	case "Solana CLI":
+		return CreateSolanaConfigFlex(app, logView)
+	default:
+		return createDefaultConfigFlex(title, app, logView)
 	}
+}
+
+func createDefaultConfigFlex(title string, app *tview.Application, logView *tview.TextView) *tview.Flex {
+	configFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
 
 	configFlex.SetBorder(true).SetTitle(title + " Config")
 	return configFlex
