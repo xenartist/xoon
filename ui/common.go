@@ -25,6 +25,7 @@ func CreateModuleUI(name string, app *tview.Application, actions map[string]func
 func CreateLogView(title string, app *tview.Application) *tview.TextView {
 	logView := tview.NewTextView().
 		SetDynamicColors(true).
+		SetScrollable(true).
 		SetChangedFunc(func() {
 			app.Draw()
 		})
