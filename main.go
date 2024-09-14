@@ -18,9 +18,12 @@ func main() {
 	//click items in mainmenu to swith views
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
 
-	ui.SetupMenuItemSelection(mainMenu, switchView,
-		ui.ModuleUI{ConfigFlex: solanaUI.ConfigFlex, LogView: solanaUI.LogView},
-		ui.ModuleUI{ConfigFlex: xenblocksUI.ConfigFlex, LogView: xenblocksUI.LogView})
+	modules := []ui.ModuleUI{
+		{ConfigFlex: solanaUI.ConfigFlex, LogView: solanaUI.LogView},
+		{ConfigFlex: xenblocksUI.ConfigFlex, LogView: xenblocksUI.LogView},
+	}
+
+	ui.SetupMenuItemSelection(mainMenu, switchView, modules)
 
 	mainFlex := tview.NewFlex().
 		AddItem(mainMenu, 0, 1, true).

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"time"
 	"xoon/xenblocks"
 
@@ -19,15 +20,27 @@ func CreateMainMenu() *tview.List {
 	return mainMenu
 }
 
-func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *tview.TextView), solanaUI, xenblocksUI ModuleUI) {
+func SetupMenuItemSelection(mainMenu *tview.List, switchView func(*tview.Flex, *tview.TextView), modules []ModuleUI) {
+
+	moduleMap := make(map[string]ModuleUI)
+	for i, module := range modules {
+		// 假设我们有一个获取模块名称的函数
+		moduleName := getModuleName(i)
+		moduleMap[moduleName] = module
+	}
+
 	mainMenu.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		switch mainText {
-		case "Solana CLI":
-			switchView(solanaUI.ConfigFlex, solanaUI.LogView)
-		case "XENBLOCKS":
-			switchView(xenblocksUI.ConfigFlex, xenblocksUI.LogView)
+		if module, ok := moduleMap[mainText]; ok {
+			switchView(module.ConfigFlex, module.LogView)
 		}
 	})
+}
+
+func getModuleName(index int) string {
+	if index < len(ModuleNames) {
+		return ModuleNames[index]
+	}
+	return fmt.Sprintf("Module %d", index+1)
 }
 
 func SetupInputCapture(app *tview.Application) {
