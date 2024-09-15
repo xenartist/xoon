@@ -60,7 +60,18 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 		}
 
 		// Create the command
-		cmd := exec.Command("./xenblocksMiner", "--minerAddr", minerAddr, "--totalDevFee", devFee, "--execute")
+		args := []string{
+			"--minerAddr", minerAddr,
+			"--totalDevFee", devFee,
+		}
+
+		if devFee != "0" {
+			args = append(args, "--ecoDevAddr", "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823")
+		}
+
+		args = append(args, "--execute")
+
+		cmd := exec.Command("./xenblocksMiner", args...)
 
 		// Create pipes for both stdout and stderr
 		stdout, err := cmd.StdoutPipe()
