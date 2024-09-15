@@ -23,19 +23,6 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 	isMining = true
 
 	go func() {
-		// Change working directory to xenblocksMiner
-		cwd, err := os.Getwd()
-		if err != nil {
-			logMessage(logView, "Error getting current directory: "+err.Error())
-			return
-		}
-		xenblocksMinerPath := filepath.Join(cwd, xenblocksMinerDir)
-		err = os.Chdir(xenblocksMinerPath)
-		if err != nil {
-			logMessage(logView, "Error changing to xenblocksMiner directory: "+err.Error())
-			return
-		}
-
 		// Read config file
 		config, err := ReadConfigFile(logView, logMessage)
 		if err != nil {
@@ -52,6 +39,24 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			} else if strings.HasPrefix(line, "account_address=") {
 				minerAddr = strings.TrimPrefix(line, "account_address=")
 			}
+		}
+
+		//Change working directory to xenblocksMiner
+		cwd, err := os.Getwd()
+		if err != nil {
+			logMessage(logView, "Error getting current directory: "+err.Error())
+			return
+		}
+
+		var xenblocksMinerPath = cwd
+		if !strings.HasSuffix(cwd, XENBLOCKS_MINER_DIR) {
+			xenblocksMinerPath = filepath.Join(cwd, XENBLOCKS_MINER_DIR)
+		}
+
+		err = os.Chdir(xenblocksMinerPath)
+		if err != nil {
+			logMessage(logView, "Error changing to xenblocksMiner directory: "+err.Error())
+			return
 		}
 
 		// Create the command
@@ -149,6 +154,11 @@ func StopMining(app *tview.Application, logView *tview.TextView, logMessage util
 	KillMiningProcess()
 	logMessage(logView, "Mining stopped")
 	isMining = false
+
+	// Change directory to parent
+	if err := os.Chdir(".."); err != nil {
+		logMessage(logView, "Error changing to parent directory: "+err.Error())
+	}
 }
 
 // KillMiningProcess stops all running xenblocksMiner processes

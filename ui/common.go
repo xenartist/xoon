@@ -47,28 +47,6 @@ func CreateLogView(title string, app *tview.Application) *tview.TextView {
 }
 
 func CreateConfigFlex(title string, app *tview.Application, logView *tview.TextView) *tview.Flex {
-	// configFlex := tview.NewFlex().
-	// 	SetDirection(tview.FlexColumn)
-
-	// for actionName, actionFunc := range actions {
-	// 	button := tview.NewButton(actionName)
-	// 	button.SetSelectedFunc(func() {
-	// 		go func(action func()) {
-	// 			// Wrap the action with logging functionality
-	// 			action()
-	// 			app.QueueUpdateDraw(func() {
-	// 				utils.LogMessage(logView, "Action '"+actionName+"' triggered")
-	// 			})
-	// 		}(actionFunc)
-	// 	})
-	// 	configFlex.AddItem(button, 0, 1, false)
-
-	// 	// Add a spacer between buttons
-	// 	configFlex.AddItem(tview.NewBox(), 0, 1, false)
-	// }
-
-	// configFlex.SetBorder(true).SetTitle(title + " Config")
-	// return configFlex
 
 	switch title {
 	case "XENBLOCKS":

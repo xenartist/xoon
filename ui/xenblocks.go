@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"xoon/utils"
 	"xoon/xenblocks"
@@ -40,9 +41,20 @@ func CreateXenblocksUI(app *tview.Application) ModuleUI {
 	form := tview.NewForm().
 		AddInputField("EIP-55 Address", accountAddress, 44, nil, nil).
 		AddInputField("RPC Link", "http://xenblocks.io", 44, nil, nil).
-		AddInputField("Dev Fee (0-1000)", devFee, 4, nil, nil).
-		AddButton("Install Miner", func() { xenblocks.InstallXENBLOCKS(app, moduleUI.LogView, utils.LogMessage) }).
-		AddButton("Save Config", nil).
+		AddInputField("Dev Fee (0-1000)", devFee, 4, nil, nil)
+
+	form.AddButton("Install Miner", func() { xenblocks.InstallXENBLOCKS(app, moduleUI.LogView, utils.LogMessage) }).
+		AddButton("Save Config", func() {
+			address := form.GetFormItem(0).(*tview.InputField).GetText()
+			devFee := form.GetFormItem(2).(*tview.InputField).GetText()
+			content := fmt.Sprintf("account_address=%s\ndevfee_permillage=%s", address, devFee)
+			err := xenblocks.WriteConfigFile(content, moduleUI.LogView, utils.LogMessage)
+			if err != nil {
+				utils.LogMessage(moduleUI.LogView, "Error saving config: "+err.Error())
+			} else {
+				utils.LogMessage(moduleUI.LogView, "Config saved successfully")
+			}
+		}).
 		AddButton("Start Mining", func() {
 			if !xenblocks.IsMining() {
 				xenblocks.StartMining(app, moduleUI.LogView, utils.LogMessage)
