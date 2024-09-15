@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"xoon/utils"
 	"xoon/xenblocks"
 
@@ -10,11 +11,36 @@ import (
 func CreateXenblocksUI(app *tview.Application) ModuleUI {
 	var moduleUI = CreateModuleUI("XENBLOCKS", app)
 
+	// Ensure xenblocksMiner directory and config.txt exist
+	if err := xenblocks.CreateXenblocksMinerDir(moduleUI.LogView, utils.LogMessage); err != nil {
+		utils.LogMessage(moduleUI.LogView, "Error creating xenblocksMiner directory: "+err.Error())
+	}
+
+	// Read config file
+	config, err := xenblocks.ReadConfigFile(moduleUI.LogView, utils.LogMessage)
+
+	// Default values
+	accountAddress := ""
+	devFee := "2"
+
+	if err == nil {
+		// Parse config
+		for _, line := range strings.Split(config, "\n") {
+			if strings.HasPrefix(line, "account_address=") {
+				accountAddress = strings.TrimPrefix(line, "account_address=")
+			} else if strings.HasPrefix(line, "devfee_permillage=") {
+				devFee = strings.TrimPrefix(line, "devfee_permillage=")
+			}
+		}
+	} else {
+		utils.LogMessage(moduleUI.LogView, "Error reading config file: "+err.Error())
+	}
+
 	// Create form
 	form := tview.NewForm().
-		AddInputField("EIP-55 Address", "", 44, nil, nil).
+		AddInputField("EIP-55 Address", accountAddress, 44, nil, nil).
 		AddInputField("RPC Link", "http://xenblocks.io", 44, nil, nil).
-		AddInputField("Dev Fee (0-1000)", "2", 4, nil, nil).
+		AddInputField("Dev Fee (0-1000)", devFee, 4, nil, nil).
 		AddButton("Install Miner", func() { xenblocks.InstallXENBLOCKS(app, moduleUI.LogView, utils.LogMessage) }).
 		AddButton("Save Config", nil).
 		AddButton("Start Mining", func() {

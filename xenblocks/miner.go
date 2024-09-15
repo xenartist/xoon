@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -21,8 +23,39 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 	isMining = true
 
 	go func() {
+		// Change working directory to xenblocksMiner
+		cwd, err := os.Getwd()
+		if err != nil {
+			logMessage(logView, "Error getting current directory: "+err.Error())
+			return
+		}
+		xenblocksMinerPath := filepath.Join(cwd, xenblocksMinerDir)
+		err = os.Chdir(xenblocksMinerPath)
+		if err != nil {
+			logMessage(logView, "Error changing to xenblocksMiner directory: "+err.Error())
+			return
+		}
+
+		// Read config file
+		config, err := ReadConfigFile(logView, logMessage)
+		if err != nil {
+			logMessage(logView, "Error reading config file: "+err.Error())
+			return
+		}
+
+		// Parse config
+		devFee := "1"
+		minerAddr := "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823"
+		for _, line := range strings.Split(config, "\n") {
+			if strings.HasPrefix(line, "devfee_permillage=") {
+				devFee = strings.TrimPrefix(line, "devfee_permillage=")
+			} else if strings.HasPrefix(line, "account_address=") {
+				minerAddr = strings.TrimPrefix(line, "account_address=")
+			}
+		}
+
 		// Create the command
-		cmd := exec.Command("./xenblocksMiner", "--minerAddr", "0x970Ce544847B0E314eA357e609A0C0cA4D9fD823", "--totalDevFee", "1", "--execute")
+		cmd := exec.Command("./xenblocksMiner", "--minerAddr", minerAddr, "--totalDevFee", devFee, "--execute")
 
 		// Create pipes for both stdout and stderr
 		stdout, err := cmd.StdoutPipe()
