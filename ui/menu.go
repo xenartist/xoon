@@ -11,10 +11,11 @@ import (
 
 func CreateMainMenu() *tview.List {
 	mainMenu := tview.NewList().
-		AddItem("XOON!(Two Weeks)", "", 0, nil).
+		AddItem("XOON!(V0.1.0)", "", 0, nil).
 		AddItem("Solana CLI", "", 'a', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
-		AddItem("QUIT", "Press 'q' 4 times", 'q', nil)
+		AddItem("QUIT(Press 'q' 4 times)", "", 'q', nil).
+		AddItem("", "by @xen_artist", 0, nil)
 
 	mainMenu.SetBorder(true).SetTitle("xoon")
 	return mainMenu
