@@ -133,6 +133,8 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 									logMessage(logView, line)
 								}
 								mutex.Unlock()
+							} else if strings.Contains(line, "Ecosystem") {
+								//skip
 							} else {
 								logMessage(logView, line)
 							}
