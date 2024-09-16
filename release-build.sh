@@ -15,9 +15,11 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Define other variables
+OS="linux"
+ARCH="amd64"
 BUILD_DIR="xoon"
 BINARY_NAME="xoon"
-ARCHIVE_NAME="xoon-${VERSION}.tar.gz"
+ARCHIVE_NAME="xoon-${VERSION}-${OS}-${ARCH}.tar.gz"
 
 echo "Building version: $VERSION"
 
@@ -29,7 +31,7 @@ fi
 
 # Build the binary
 echo "Building $BINARY_NAME for Linux (amd64)..."
-GOOS=linux GOARCH=amd64 go build -o "$BUILD_DIR/$BINARY_NAME"
+GOOS=$OS GOARCH=$ARCH go build -o "$BUILD_DIR/$BINARY_NAME"
 
 if [ $? -ne 0 ]; then
     echo "Build failed"
