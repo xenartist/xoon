@@ -14,32 +14,56 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Define other variables
-OS="linux"
-ARCH="amd64"
 BUILD_DIR="xoon"
+
+# Clean up previous build artifacts
+echo "Cleaning up previous build artifacts..."
+rm -rf "$BUILD_DIR"
+rm -f xoon-*.zip xoon-*.tar.gz
+
+# Define build configurations
+declare -A OS_ARCH=(
+    ["linux"]="amd64"
+    ["windows"]="amd64"
+)
+
 BINARY_NAME="xoon"
-ARCHIVE_NAME="xoon-${VERSION}-${OS}-${ARCH}.tar.gz"
 
 echo "Building version: $VERSION"
 
-# Create build directory if it doesn't exist
-if [ ! -d "$BUILD_DIR" ]; then
-    echo "Creating build directory: $BUILD_DIR"
-    mkdir "$BUILD_DIR"
-fi
+# Create build directory
+mkdir -p "$BUILD_DIR"
 
-# Build the binary
-echo "Building $BINARY_NAME for Linux (amd64)..."
-GOOS=$OS GOARCH=$ARCH go build -o "$BUILD_DIR/$BINARY_NAME"
+# Build for each OS and architecture
+for OS in "${!OS_ARCH[@]}"; do
+    ARCH=${OS_ARCH[$OS]}
+    echo "Building for $OS ($ARCH)..."
+    
+    if [ "$OS" == "windows" ]; then
+        BINARY_NAME="xoon.exe"
+    else
+        BINARY_NAME="xoon"
+    fi
+    
+    GOOS=$OS GOARCH=$ARCH go build -o "$BUILD_DIR/${BINARY_NAME}"
+    
+    if [ $? -ne 0 ]; then
+        echo "Build failed for $OS"
+        exit 1
+    fi
+    
+    if [ "$OS" == "windows" ]; then
+        ARCHIVE_NAME="xoon-${VERSION}-${OS}-${ARCH}.zip"
+        (cd "$BUILD_DIR" && zip "../$ARCHIVE_NAME" "${BINARY_NAME}")
+    else
+        ARCHIVE_NAME="xoon-${VERSION}-${OS}-${ARCH}.tar.gz"
+        tar -czvf "$ARCHIVE_NAME" -C "$BUILD_DIR" "${BINARY_NAME}"
+    fi
+    
+    echo "Archive created: $ARCHIVE_NAME"
+    
+    # Clean up binary
+    rm "$BUILD_DIR/${BINARY_NAME}"
+done
 
-if [ $? -ne 0 ]; then
-    echo "Build failed"
-    exit 1
-fi
-
-# Create tar.gz archive
-echo "Creating archive: $ARCHIVE_NAME"
-tar -czvf "$ARCHIVE_NAME" "$BUILD_DIR"
-
-echo "Build complete. Archive created: $ARCHIVE_NAME"
+echo "Build complete for all platforms."
