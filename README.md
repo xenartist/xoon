@@ -2,6 +2,8 @@
 
 simple gui for x1/solana/svm hardcore operations
 
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/xenartist/xoon/total)
+
 ## play the xoon app
 
 * linux
