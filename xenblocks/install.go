@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"runtime"
 	"xoon/utils"
 
 	"github.com/rivo/tview"
@@ -19,13 +19,14 @@ const (
 // ReadConfigFile reads the content of config.txt
 func ReadConfigFile(logView *tview.TextView, logMessage utils.LogMessageFunc) (string, error) {
 	cwd, err := os.Getwd()
-	logMessage(logView, "Debug: ReadConfigFile cwd is "+cwd)
+
 	if err != nil {
 		logMessage(logView, "Error getting current working directory: "+err.Error())
 		return "", err
 	}
 
 	configPath := filepath.Join(cwd, XENBLOCKS_MINER_DIR, CONFIG_FILE_NAME)
+	logMessage(logView, "Debug: ReadConfigFile from "+configPath)
 	content, err := os.ReadFile(configPath)
 	if err != nil {
 		logMessage(logView, "Error reading config file: "+err.Error())
@@ -117,9 +118,15 @@ func isXENBLOCKSInstalled(logView *tview.TextView, logMessage utils.LogMessageFu
 		return false
 	}
 
-	cmd := exec.Command(filepath.Join(cwd, XENBLOCKS_MINER_DIR, "xenblocksMiner"), "-h")
-	output, err := cmd.Output()
-	if err == nil && strings.Contains(string(output), "XenblocksMiner") {
+	var executableName string
+	if runtime.GOOS == "windows" {
+		executableName = "xenblocksMiner.exe"
+	} else {
+		executableName = "xenblocksMiner"
+	}
+
+	executablePath := filepath.Join(cwd, XENBLOCKS_MINER_DIR, executableName)
+	if _, err := os.Stat(executablePath); err == nil {
 		logMessage(logView, "XenblocksMiner is already installed. No need to install again.")
 		return true
 	}
@@ -127,8 +134,15 @@ func isXENBLOCKSInstalled(logView *tview.TextView, logMessage utils.LogMessageFu
 }
 
 func downloadXENBLOCKS(logView *tview.TextView, logMessage utils.LogMessageFunc) (string, error) {
-	url := "https://github.com/woodysoil/XenblocksMiner/releases/download/v1.3.1/xenblocksMiner-1.3.1-Linux.tar.gz"
-	fileName := "xenblocksMiner-1.3.1-Linux.tar.gz"
+	var url, fileName string
+
+	if runtime.GOOS == "windows" {
+		url = "https://github.com/woodysoil/XenblocksMiner/releases/download/v1.3.1/xenblocksMiner-1.3.1-windows.zip"
+		fileName = "xenblocksMiner-1.3.1-windows.zip"
+	} else {
+		url = "https://github.com/woodysoil/XenblocksMiner/releases/download/v1.3.1/xenblocksMiner-1.3.1-Linux.tar.gz"
+		fileName = "xenblocksMiner-1.3.1-Linux.tar.gz"
+	}
 
 	// Get the current working directory
 	cwd, err := os.Getwd()
@@ -167,17 +181,25 @@ func extractXENBLOCKS(logView *tview.TextView, logMessage utils.LogMessageFunc, 
 	}
 	logMessage(logView, "File extracted successfully")
 
-	// Construct the path to the extracted executable
-	executablePath := filepath.Join(dir, "xenblocksMiner")
-
+	var executablePath string
 	// Make the file executable
-	cmd = exec.Command("chmod", "+x", executablePath)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		logMessage(logView, fmt.Sprintf("Error making file executable: %v\nOutput: %s", err, string(output)))
-		return "", err
+	if runtime.GOOS != "windows" {
+		// Construct the path to the extracted executable
+		executablePath = filepath.Join(dir, "xenblocksMiner")
+		// For Linux and other Unix-like systems
+		cmd = exec.Command("chmod", "+x", executablePath)
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			logMessage(logView, fmt.Sprintf("Error making file executable: %v\nOutput: %s", err, string(output)))
+			return "", err
+		}
+		logMessage(logView, "File permissions updated successfully")
+	} else {
+		// Construct the path to the extracted executable
+		executablePath = filepath.Join(dir, "xenblocksMiner.exe")
+		// For Windows, no need to change permissions
+		logMessage(logView, "File permissions update not required on Windows")
 	}
-	logMessage(logView, "File permissions updated successfully")
 
 	// Return the path to the executable
 	return executablePath, nil

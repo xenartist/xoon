@@ -71,7 +71,14 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 
 		args = append(args, "--execute")
 
-		cmd := exec.Command("./xenblocksMiner", args...)
+		var executableName string
+		if runtime.GOOS == "windows" {
+			executableName = ".\\xenblocksMiner.exe"
+		} else {
+			executableName = "./xenblocksMiner"
+		}
+
+		cmd := exec.Command(executableName, args...)
 
 		// Create pipes for both stdout and stderr
 		stdout, err := cmd.StdoutPipe()
