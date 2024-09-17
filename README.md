@@ -28,7 +28,7 @@ in xoon folder, just double click xoon.exe
 
 * preparation
 ```
-sudo apt install git build-essential git
+sudo apt install git build-essential
 ```
 
 * install go language
