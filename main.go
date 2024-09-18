@@ -2,11 +2,14 @@ package main
 
 import (
 	"xoon/ui"
+	"xoon/utils"
 
 	"github.com/rivo/tview"
 )
 
 func main() {
+	utils.XoosInit()
+
 	app := tview.NewApplication()
 
 	mainMenu := ui.CreateMainMenu()

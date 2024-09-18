@@ -18,14 +18,7 @@ const (
 
 // ReadConfigFile reads the content of config.txt
 func ReadConfigFile(logView *tview.TextView, logMessage utils.LogMessageFunc) (string, error) {
-	cwd, err := os.Getwd()
-
-	if err != nil {
-		logMessage(logView, "Error getting current working directory: "+err.Error())
-		return "", err
-	}
-
-	configPath := filepath.Join(cwd, XENBLOCKS_MINER_DIR, CONFIG_FILE_NAME)
+	configPath := filepath.Join(utils.GLOBAL_WORK_DIR, XENBLOCKS_MINER_DIR, CONFIG_FILE_NAME)
 	logMessage(logView, "Debug: ReadConfigFile from "+configPath)
 	content, err := os.ReadFile(configPath)
 	if err != nil {
@@ -38,14 +31,8 @@ func ReadConfigFile(logView *tview.TextView, logMessage utils.LogMessageFunc) (s
 
 // WriteConfigFile writes or updates the content of config.txt
 func WriteConfigFile(content string, logView *tview.TextView, logMessage utils.LogMessageFunc) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		logMessage(logView, "Error getting current working directory: "+err.Error())
-		return err
-	}
-
-	configPath := filepath.Join(cwd, XENBLOCKS_MINER_DIR, CONFIG_FILE_NAME)
-	err = os.WriteFile(configPath, []byte(content), 0644)
+	configPath := filepath.Join(utils.GLOBAL_WORK_DIR, XENBLOCKS_MINER_DIR, CONFIG_FILE_NAME)
+	var err = os.WriteFile(configPath, []byte(content), 0644)
 	if err != nil {
 		logMessage(logView, "Error writing config file: "+err.Error())
 		return err
@@ -56,14 +43,7 @@ func WriteConfigFile(content string, logView *tview.TextView, logMessage utils.L
 
 // CreateXenblocksMinerDir creates the xenblocksMiner directory and config file if they don't exist
 func CreateXenblocksMinerDir(logView *tview.TextView, logMessage utils.LogMessageFunc) error {
-	cwd, err := os.Getwd()
-	logMessage(logView, "debug:cwd is "+cwd)
-	if err != nil {
-		logMessage(logView, fmt.Sprintf("Error getting current directory: %v", err))
-		return err
-	}
-
-	xenblocksMinerPath := filepath.Join(cwd, XENBLOCKS_MINER_DIR)
+	xenblocksMinerPath := filepath.Join(utils.GLOBAL_WORK_DIR, XENBLOCKS_MINER_DIR)
 	if _, err := os.Stat(xenblocksMinerPath); os.IsNotExist(err) {
 		err = os.Mkdir(xenblocksMinerPath, 0755)
 		if err != nil {
@@ -112,12 +92,6 @@ func InstallXENBLOCKS(app *tview.Application, logView *tview.TextView, logMessag
 }
 
 func isXENBLOCKSInstalled(logView *tview.TextView, logMessage utils.LogMessageFunc) bool {
-	cwd, err := os.Getwd()
-	if err != nil {
-		logMessage(logView, fmt.Sprintf("Error getting current directory: %v", err))
-		return false
-	}
-
 	var executableName string
 	if runtime.GOOS == "windows" {
 		executableName = "xenblocksMiner.exe"
@@ -125,7 +99,7 @@ func isXENBLOCKSInstalled(logView *tview.TextView, logMessage utils.LogMessageFu
 		executableName = "xenblocksMiner"
 	}
 
-	executablePath := filepath.Join(cwd, XENBLOCKS_MINER_DIR, executableName)
+	executablePath := filepath.Join(utils.GLOBAL_WORK_DIR, XENBLOCKS_MINER_DIR, executableName)
 	if _, err := os.Stat(executablePath); err == nil {
 		logMessage(logView, "XenblocksMiner is already installed. No need to install again.")
 		return true
@@ -144,15 +118,8 @@ func downloadXENBLOCKS(logView *tview.TextView, logMessage utils.LogMessageFunc)
 		fileName = "xenblocksMiner-1.3.1-Linux.tar.gz"
 	}
 
-	// Get the current working directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		logMessage(logView, fmt.Sprintf("Error getting current directory: %v", err))
-		return "", err
-	}
-
 	// Construct the full file path
-	filePath := filepath.Join(cwd, XENBLOCKS_MINER_DIR, fileName)
+	filePath := filepath.Join(utils.GLOBAL_WORK_DIR, XENBLOCKS_MINER_DIR, fileName)
 
 	// Prepare the curl command
 	cmd := exec.Command("curl", "-L", "-o", filePath, url)

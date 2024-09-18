@@ -41,17 +41,7 @@ func StartMining(app *tview.Application, logView *tview.TextView, logMessage uti
 			}
 		}
 
-		//Change working directory to xenblocksMiner
-		cwd, err := os.Getwd()
-		if err != nil {
-			logMessage(logView, "Error getting current directory: "+err.Error())
-			return
-		}
-
-		var xenblocksMinerPath = cwd
-		if !strings.HasSuffix(cwd, XENBLOCKS_MINER_DIR) {
-			xenblocksMinerPath = filepath.Join(cwd, XENBLOCKS_MINER_DIR)
-		}
+		var xenblocksMinerPath = filepath.Join(utils.GLOBAL_WORK_DIR, XENBLOCKS_MINER_DIR)
 
 		err = os.Chdir(xenblocksMinerPath)
 		if err != nil {
