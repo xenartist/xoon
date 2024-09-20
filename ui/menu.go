@@ -11,8 +11,9 @@ import (
 
 func CreateMainMenu() *tview.List {
 	mainMenu := tview.NewList().
-		AddItem("xoon (0.1.2)", "", 0, nil).
+		AddItem("xoon (0.2.0)", "", 0, nil).
 		AddItem("Solana CLI", "", 'a', nil).
+		AddItem("Xolana", "", 'b', nil).
 		AddItem("XENBLOCKS", "", 'e', nil).
 		AddItem("QUIT(Press 'q' 4 times)", "", 'q', nil).
 		AddItem("", "by @xen_artist", 0, nil)

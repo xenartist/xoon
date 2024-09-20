@@ -4,7 +4,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-var ModuleNames = []string{"Solana CLI", "XENBLOCKS"}
+var ModuleNames = []string{"Solana CLI", "Xolana", "XENBLOCKS"}
 
 type ModuleUI struct {
 	DashboardFlex *tview.Flex

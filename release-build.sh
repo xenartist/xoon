@@ -32,7 +32,7 @@ BINARY_NAME="xoon"
 echo "Building version: $VERSION"
 
 # Create build directory
-mkdir -p "$BUILD_DIR"
+mkdir -m "$BUILD_DIR"
 
 # Build for each OS and architecture
 for OS in "${!OS_ARCH[@]}"; do
@@ -54,10 +54,10 @@ for OS in "${!OS_ARCH[@]}"; do
     
     if [ "$OS" == "windows" ]; then
         ARCHIVE_NAME="xoon-${VERSION}-${OS}-${ARCH}.zip"
-        (cd "$BUILD_DIR" && zip "../$ARCHIVE_NAME" "${BINARY_NAME}")
+        (cd "$BUILD_DIR/.." && zip -r "$ARCHIVE_NAME" "xoon")
     else
         ARCHIVE_NAME="xoon-${VERSION}-${OS}-${ARCH}.tar.gz"
-        tar -czvf "$ARCHIVE_NAME" -C "$BUILD_DIR" "${BINARY_NAME}"
+        tar -czvf "$ARCHIVE_NAME" -C "$BUILD_DIR/.." "xoon"
     fi
     
     echo "Archive created: $ARCHIVE_NAME"

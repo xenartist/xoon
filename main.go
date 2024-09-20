@@ -17,6 +17,7 @@ func main() {
 
 	solanaUI := ui.CreateSolanaUI(app)
 	xenblocksUI := ui.CreateXenblocksUI(app)
+	xolanaUI := ui.CreateXolanaUI(app)
 
 	//click items in mainmenu to swith views
 	switchView := ui.CreateSwitchViewFunc(rightFlex, mainMenu)
@@ -26,6 +27,11 @@ func main() {
 			DashboardFlex: solanaUI.DashboardFlex,
 			ConfigFlex:    solanaUI.ConfigFlex,
 			LogView:       solanaUI.LogView,
+		},
+		{
+			DashboardFlex: xolanaUI.DashboardFlex,
+			ConfigFlex:    xolanaUI.ConfigFlex,
+			LogView:       xolanaUI.LogView,
 		},
 		{
 			DashboardFlex: xenblocksUI.DashboardFlex,
