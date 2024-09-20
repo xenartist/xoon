@@ -13,7 +13,7 @@ func CreateXolanaUI(app *tview.Application) ModuleUI {
 	form := tview.NewForm()
 
 	var publicKey string
-	form.AddInputField("SVM Public Address", "NOTE: 5 SOL per hour is allowed", 44, nil, func(text string) {
+	form.AddInputField("SVM Public Address", "NOTE: 5 SOL per hour is allowed", 46, nil, func(text string) {
 		publicKey = text
 	})
 
