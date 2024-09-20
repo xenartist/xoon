@@ -32,7 +32,7 @@ BINARY_NAME="xoon"
 echo "Building version: $VERSION"
 
 # Create build directory
-mkdir -m "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
 
 # Build for each OS and architecture
 for OS in "${!OS_ARCH[@]}"; do
