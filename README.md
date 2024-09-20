@@ -2,6 +2,10 @@
 
 simple gui for x1/solana/svm hardcore operations
 
+* [xolana](https://xolana.xen.network/web_faucet) (svm) operations
+* [xenblocks](https://explorer.xenblocks.io/) mining
+* etc.
+
 ![GitHub Repo stars](https://img.shields.io/github/stars/xenartist/xoon?style=flat)
  ![GitHub forks](https://img.shields.io/github/forks/xenartist/xoon?style=flat)
  ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/xenartist/xoon/total) ![GitHub License](https://img.shields.io/github/license/xenartist/xoon)
