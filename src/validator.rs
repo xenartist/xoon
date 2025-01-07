@@ -35,6 +35,26 @@ exec PATH_OF_SOLANA_VALIDATOR \
     --maximum-full-snapshots-to-retain 50 \
 "#;
 
+// Function to get script content
+fn get_script_content() -> String {
+    // Get current executable path
+    if let Ok(exe_path) = env::current_exe() {
+        // Get the directory containing the executable
+        if let Some(exe_dir) = exe_path.parent() {
+            // Create script path in the same directory
+            let script_path = exe_dir.join("validator-testnet.sh");
+            
+            // Try to read existing script
+            if let Ok(content) = fs::read_to_string(&script_path) {
+                return content;
+            }
+        }
+    }
+    
+    // Return default script if file doesn't exist or can't be read
+    DEFAULT_SCRIPT.to_string()
+}
+
 // Create and return the validator view layout
 pub fn get_validator_view() -> LinearLayout {
     // Create three sections
@@ -45,7 +65,7 @@ pub fn get_validator_view() -> LinearLayout {
 
     // Create config section with TextArea and buttons
     let text_area = TextArea::new()
-        .content(DEFAULT_SCRIPT)
+        .content(get_script_content())  // Use function to get content
         .with_name("script_content")
         .min_height(10);
 
