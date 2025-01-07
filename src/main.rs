@@ -8,7 +8,7 @@ use cursive::traits::*;
 // Handle menu item selection
 fn menu_selected(siv: &mut Cursive, item: &str) {
     match item {
-        "menu1" => {
+        "validator" => {
             // Replace right panel content with validator view
             siv.call_on_name("right_sections", |view: &mut LinearLayout| {
                 *view = validator::get_validator_view();
@@ -40,7 +40,7 @@ fn main() {
         .on_submit(menu_selected);
     
     // Add menu items
-    menu.add_item("X1 Validator", "menu1");
+    menu.add_item("X1 Validator", "validator");
 
     // Set default selection to X1 Validator
     menu.set_selection(0);
