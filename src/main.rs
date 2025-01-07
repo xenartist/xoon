@@ -1,3 +1,5 @@
+mod validator;
+
 use cursive::Cursive;
 use cursive::theme::{Theme, BaseColor, Color, PaletteColor};
 use cursive::views::{LinearLayout, SelectView, Panel, TextView};
@@ -5,9 +7,19 @@ use cursive::traits::*;
 
 // Handle menu item selection
 fn menu_selected(siv: &mut Cursive, item: &str) {
-    siv.call_on_name("right_panel", |view: &mut Panel<TextView>| {
-        view.get_inner_mut().set_content(format!("Selected: {}", item));
-    });
+    match item {
+        "menu1" => {
+            // Replace right panel content with validator view
+            siv.call_on_name("right_sections", |view: &mut LinearLayout| {
+                *view = validator::get_validator_view();
+            });
+        },
+        _ => {
+            siv.call_on_name("right_panel", |view: &mut Panel<TextView>| {
+                view.get_inner_mut().set_content(format!("Selected: {}", item));
+            });
+        }
+    }
 }
 
 fn main() {
@@ -30,35 +42,20 @@ fn main() {
     // Add menu items
     menu.add_item("X1 Validator", "menu1");
 
+    // Set default selection to X1 Validator
+    menu.set_selection(0);
+    
+    // Create left panel with title
     let left_panel = Panel::new(menu)
         .title("xoon")
         .min_width(20)
         .full_height();
 
-    // Create three sections for right panel
-    let dashboard = Panel::new(TextView::new("Dashboard"))
-        .title("Dashboard")
-        .full_width()
-        .fixed_height(5);
-
-    let config = Panel::new(TextView::new("Config"))
-        .title("Config")
-        .with_name("right_panel")
+    // Create initial right panel with validator view
+    let right_sections = validator::get_validator_view()
+        .with_name("right_sections")
         .full_width()
         .full_height();
-
-    let logs = Panel::new(TextView::new("Log"))
-        .title("Logs")
-        .full_width()
-        .fixed_height(8);
-
-    // Combine right sections vertically
-    let right_sections = LinearLayout::vertical()
-        .child(dashboard)
-        .child(config)
-        .child(logs)
-        .full_width()
-        .full_height(); 
 
     // Create main layout with left menu and right content panel
     let layout = LinearLayout::horizontal()
