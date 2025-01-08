@@ -1,4 +1,4 @@
-use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button};
+use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView};
 use cursive::traits::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -65,14 +65,16 @@ pub fn get_validator_view() -> LinearLayout {
 
     // Create config section with TextArea and buttons
     let text_area = TextArea::new()
-        .content(get_script_content())  // Use function to get content
+        .content(get_script_content())
         .with_name("script_content")
         .min_height(10);
 
+    // Create button layout with space between buttons
     let button_layout = LinearLayout::horizontal()
         .child(Button::new("Save", |s| {
             save_script(s);
         }))
+        .child(DummyView.fixed_width(4))  // Add empty space
         .child(Button::new("Run", move |s| {
             toggle_run_stop(s);
         }).with_name("run_button"));
