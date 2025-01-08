@@ -81,14 +81,14 @@ pub fn get_validator_view() -> LinearLayout {
 
     let config = Panel::new(
         LinearLayout::vertical()
-            .child(text_area)
             .child(button_layout)
+            .child(text_area)  
     )
     .title("Config")
     .full_width()
     .full_height();
 
-    let logs = Panel::new(TextView::new("Validator Logs"))
+    let logs = Panel::new(TextView::new(""))
         .title("Logs")
         .with_name("log_view")
         .full_width()
@@ -131,7 +131,7 @@ fn save_script(siv: &mut cursive::Cursive) {
                     }
                     
                     // Update log to show success
-                    update_logs(siv, "Script saved successfully!");
+                    update_logs(siv, "Script validator-testnet.sh saved successfully!");
                 },
                 Err(e) => {
                     // Update log to show error
@@ -169,7 +169,7 @@ fn toggle_run_stop(siv: &mut cursive::Cursive) {
 
 // Function to update log view
 fn update_logs(siv: &mut cursive::Cursive, message: &str) {
-    siv.call_on_name("log_view", |view: &mut TextView| {
-        view.append(format!("{}\n", message));
+    siv.call_on_name("log_view", |view: &mut Panel<TextView>| {
+        view.get_inner_mut().append(format!("{}\n", message));
     });
 }
