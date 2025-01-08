@@ -74,7 +74,7 @@ pub fn get_validator_view() -> LinearLayout {
         .child(Button::new("Save", |s| {
             save_script(s);
         }))
-        .child(DummyView.fixed_width(4))  // Add empty space
+        .child(DummyView.fixed_width(4))
         .child(Button::new("Run", move |s| {
             toggle_run_stop(s);
         }).with_name("run_button"));
