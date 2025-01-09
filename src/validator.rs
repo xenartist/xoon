@@ -67,7 +67,8 @@ pub fn get_validator_view() -> LinearLayout {
     let text_area = TextArea::new()
         .content(get_script_content())
         .with_name("script_content")
-        .min_height(10);
+        .min_height(10)
+        .max_height(24);
 
     // Create button layout with space between buttons
     let button_layout = LinearLayout::horizontal()
