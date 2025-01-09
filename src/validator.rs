@@ -1,4 +1,4 @@
-use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView};
+use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView};
 use cursive::traits::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -80,20 +80,20 @@ pub fn get_validator_view() -> LinearLayout {
             toggle_run_stop(s);
         }).with_name("run_button"));
 
-    let config = Panel::new(
-        LinearLayout::vertical()
-            .child(button_layout)
-            .child(text_area)  
-    )
-    .title("Config")
-    .full_width()
-    .full_height();
+    let config_content = LinearLayout::vertical()
+        .child(ResizedView::with_full_screen(text_area))
+        .child(button_layout);
+
+    let config = Panel::new(config_content)
+        .title("Config")
+        .full_width()
+        .min_height(10);
 
     let logs = Panel::new(TextView::new(""))
         .title("Logs")
         .with_name("log_view")
         .full_width()
-        .fixed_height(8);
+        .min_height(10);
 
     // Combine sections vertically
     let layout = LinearLayout::vertical()
