@@ -7,6 +7,7 @@ use regex::Regex;
 use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView};
 use cursive::traits::*;
 use cursive::Cursive;
+use lazy_static::lazy_static;
 
 // Global state for run/stop button
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -38,6 +39,11 @@ exec PATH_OF_SOLANA_VALIDATOR \
     --maximum-incremental-snapshots-to-retain 10 \
     --maximum-full-snapshots-to-retain 50 \
 "#;
+
+// Initialize regex pattern for ANSI escape codes
+lazy_static! {
+    static ref ANSI_ESCAPE_RE: Regex = Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]|\x1B\[[0-9;]*m").unwrap();
+}
 
 // Function to get script content
 fn get_script_content() -> String {
@@ -163,7 +169,7 @@ fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
     // Start tail command with -f (follow) and -n 10 (last 10 lines)
     // Added --retry to keep trying if the file is inaccessible
     let mut cmd = Command::new("tail")
-        .args(["-f", "-n", "50", "--retry", log_path])
+        .args(["-f", "-n", "10", "--retry", log_path])
         .stdout(std::process::Stdio::piped())
         .spawn()
         .ok()?;
@@ -230,10 +236,18 @@ fn toggle_run_stop(siv: &mut Cursive) {
     }
 }
 
+// Clean ANSI escape sequences from log message
+fn clean_log_message(message: &str) -> String {
+    ANSI_ESCAPE_RE.replace_all(message, "").to_string()
+}
+
 // Update the logs panel with new content
 fn update_logs(siv: &mut Cursive, message: &str) {
+    // Clean ANSI escape sequences before displaying
+    let clean_message = clean_log_message(message);
+    
     siv.call_on_name("log_view", |view: &mut Panel<ScrollView<TextView>>| {
-        view.get_inner_mut().get_inner_mut().append(message);
+        view.get_inner_mut().get_inner_mut().append(&clean_message);
         view.get_inner_mut().get_inner_mut().append("\n");
     });
 }
