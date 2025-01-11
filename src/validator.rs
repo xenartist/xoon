@@ -38,6 +38,7 @@ exec PATH_OF_SOLANA_VALIDATOR \
     --full-snapshot-interval-slots 5000 \
     --maximum-incremental-snapshots-to-retain 10 \
     --maximum-full-snapshots-to-retain 50 \
+    &
 "#;
 
 // Initialize regex pattern for ANSI escape codes
