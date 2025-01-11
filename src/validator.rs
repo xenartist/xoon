@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
 use std::fs;
 use regex::Regex;
-use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView};
+use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView};
 use cursive::traits::*;
 use cursive::Cursive;
 
@@ -93,11 +93,14 @@ pub fn get_validator_view() -> LinearLayout {
         .full_width()
         .min_height(10);
 
-    let logs = Panel::new(TextView::new(""))
-        .title("Logs")
-        .with_name("log_view")
-        .full_width()
-        .min_height(10);
+    let logs = Panel::new(
+        ScrollView::new(TextView::new(""))
+            .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+    )
+    .title("Logs")
+    .with_name("log_view")
+    .full_width()
+    .min_height(8);
 
     // Combine sections vertically
     let layout = LinearLayout::vertical()
@@ -229,9 +232,8 @@ fn toggle_run_stop(siv: &mut Cursive) {
 
 // Update the logs panel with new content
 fn update_logs(siv: &mut Cursive, message: &str) {
-    siv.call_on_name("log_view", |view: &mut Panel<TextView>| {
-        // Simply append the new message
-        view.get_inner_mut().append(message);
-        view.get_inner_mut().append("\n");
+    siv.call_on_name("log_view", |view: &mut Panel<ScrollView<TextView>>| {
+        view.get_inner_mut().get_inner_mut().append(message);
+        view.get_inner_mut().get_inner_mut().append("\n");
     });
 }
