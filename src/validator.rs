@@ -1,14 +1,18 @@
-use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView};
-use cursive::traits::*;
-use std::sync::Arc;
+use std::process::{Command, Child};
+use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
 use std::fs;
-use std::path::PathBuf;
-use std::io::Write;
+use regex::Regex;
+use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView};
+use cursive::traits::*;
+use cursive::Cursive;
 
 // Global state for run/stop button
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
+
+// Global variable to store tail process
+static mut TAIL_PROCESS: Option<Child> = None;
 
 // Default validator script content
 const DEFAULT_SCRIPT: &str = r#"#!/bin/bash
@@ -143,24 +147,79 @@ fn save_script(siv: &mut cursive::Cursive) {
     }
 }
 
-// Function to toggle between Run and Stop
-fn toggle_run_stop(siv: &mut cursive::Cursive) {
+// Extract log file path from script content using regex
+fn extract_log_path(script_content: &str) -> Option<String> {
+    let re = Regex::new(r"--log\s+([^\s\\]+)").ok()?;
+    re.captures(script_content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
+// Start tail process and monitor its output
+fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
+    // Start tail command with -f (follow) and -n 10 (last 10 lines)
+    // Added --retry to keep trying if the file is inaccessible
+    let mut cmd = Command::new("tail")
+        .args(["-f", "-n", "10", "--retry", log_path])
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .ok()?;
+    
+    // Get stdout handle from the process
+    let stdout = cmd.stdout.take()?;
+    let reader = BufReader::new(stdout);
+    let siv = siv.cb_sink().clone();
+
+    // Spawn a new thread to read output
+    std::thread::spawn(move || {
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                // Send each line to the UI
+                let _ = siv.send(Box::new(move |s| {
+                    update_logs(s, &line);
+                }));
+            }
+        }
+    });
+
+    Some(cmd)
+}
+
+// Toggle between Run and Stop states
+fn toggle_run_stop(siv: &mut Cursive) {
     let is_running = IS_RUNNING.load(Ordering::SeqCst);
     
     if !is_running {
-        // Start the script
-        // TODO: Execute the saved script
-        // Will implement when you provide the command
+        // Get script content from TextArea
+        let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
+            view.get_content().to_string()
+        }).unwrap_or_default();
         
+        // Extract log path and start monitoring
+        if let Some(log_path) = extract_log_path(&script_content) {
+            if let Some(process) = start_log_monitor(siv, &log_path) {
+                unsafe {
+                    TAIL_PROCESS = Some(process);
+                }
+            }
+        }
+        
+        // Update button state to "Stop"
         siv.call_on_name("run_button", |button: &mut Button| {
             button.set_label("Stop");
         });
         IS_RUNNING.store(true, Ordering::SeqCst);
-    } else {
-        // Stop the script
-        // TODO: Execute stop command
-        // Will implement when you provide the command
         
+    } else {
+        // Stop log monitoring by killing tail process
+        unsafe {
+            if let Some(mut process) = TAIL_PROCESS.take() {
+                let _ = process.kill();
+                let _ = process.wait();
+            }
+        }
+        
+        // Update button state back to "Run"
         siv.call_on_name("run_button", |button: &mut Button| {
             button.set_label("Run");
         });
@@ -168,9 +227,12 @@ fn toggle_run_stop(siv: &mut cursive::Cursive) {
     }
 }
 
-// Function to update log view
-fn update_logs(siv: &mut cursive::Cursive, message: &str) {
+// Update the logs panel with new content
+fn update_logs(siv: &mut Cursive, message: &str) {
     siv.call_on_name("log_view", |view: &mut Panel<TextView>| {
+        // Append new message and scroll to the bottom
         view.get_inner_mut().append(format!("{}\n", message));
+        // Ensure the view scrolls to show the latest content
+        view.get_inner_mut().scroll_to_bottom();
     });
 }
