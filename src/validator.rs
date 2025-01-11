@@ -160,7 +160,7 @@ fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
     // Start tail command with -f (follow) and -n 10 (last 10 lines)
     // Added --retry to keep trying if the file is inaccessible
     let mut cmd = Command::new("tail")
-        .args(["-f", "-n", "10", "--retry", log_path])
+        .args(["-f", "-n", "50", "--retry", log_path])
         .stdout(std::process::Stdio::piped())
         .spawn()
         .ok()?;
@@ -230,9 +230,8 @@ fn toggle_run_stop(siv: &mut Cursive) {
 // Update the logs panel with new content
 fn update_logs(siv: &mut Cursive, message: &str) {
     siv.call_on_name("log_view", |view: &mut Panel<TextView>| {
-        // Append new message and scroll to the bottom
-        view.get_inner_mut().append(format!("{}\n", message));
-        // Ensure the view scrolls to show the latest content
-        view.get_inner_mut().scroll_to_bottom();
+        // Simply append the new message
+        view.get_inner_mut().append(message);
+        view.get_inner_mut().append("\n");
     });
 }
