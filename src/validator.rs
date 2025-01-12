@@ -8,6 +8,10 @@ use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView,
 use cursive::traits::*;
 use cursive::Cursive;
 use lazy_static::lazy_static;
+use std::collections::VecDeque;
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 // Global state for run/stop button
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -174,6 +178,9 @@ fn extract_log_path(script_content: &str) -> Option<String> {
     Some(log_path)
 }
 
+// Add a constant for maximum log lines
+const MAX_LOG_LINES: usize = 100;
+
 // Start tail process and monitor its output
 fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
     // Create log file if it doesn't exist
@@ -184,31 +191,81 @@ fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
         }
     }
     
-    // Start tail command with -f (follow) and -n 10 (last 10 lines)
     let mut cmd = Command::new("tail")
         .args(["-f", "-n", "10", log_path])
         .stdout(std::process::Stdio::piped())
         .spawn()
         .ok()?;
     
-    // Get stdout handle from the process
     let stdout = cmd.stdout.take()?;
     let reader = BufReader::new(stdout);
     let siv = siv.cb_sink().clone();
+    
+    // Create a channel for log messages
+    let (tx, rx) = mpsc::channel();
+    let tx_clone = tx.clone();
 
-    // Spawn a new thread to read output
+    // Spawn a thread to read logs
     std::thread::spawn(move || {
         for line in reader.lines() {
             if let Ok(line) = line {
-                // Send each line to the UI
-                let _ = siv.send(Box::new(move |s| {
-                    update_logs(s, &line);
-                }));
+                if tx_clone.send(line).is_err() {
+                    break;
+                }
+            }
+        }
+    });
+
+    // Spawn another thread to batch process logs
+    std::thread::spawn(move || {
+        let log_buffer = Arc::new(Mutex::new(VecDeque::with_capacity(MAX_LOG_LINES)));
+        let mut batch = Vec::new();
+        let mut last_update = std::time::Instant::now();
+
+        while let Ok(line) = rx.recv() {
+            batch.push(line);
+
+            // Update UI if we have collected enough lines or enough time has passed
+            if batch.len() >= 10 || last_update.elapsed() >= std::time::Duration::from_millis(100) {
+                if !batch.is_empty() {
+                    let messages = batch.join("\n");
+                    let buffer_clone = Arc::clone(&log_buffer);
+                    let _ = siv.send(Box::new(move |s| {
+                        update_logs_batch(s, &messages, &buffer_clone);
+                    }));
+                    batch.clear();
+                    last_update = std::time::Instant::now();
+                }
             }
         }
     });
 
     Some(cmd)
+}
+
+// Update logs with batched messages
+fn update_logs_batch(siv: &mut Cursive, messages: &str, log_buffer: &Arc<Mutex<VecDeque<String>>>) {
+    // Clean ANSI escape sequences
+    let clean_messages = clean_log_message(messages);
+    
+    // Get lock on buffer
+    if let Ok(mut buffer) = log_buffer.lock() {
+        // Split messages into lines and add to buffer
+        for line in clean_messages.lines() {
+            buffer.push_back(line.to_string());
+            // Keep buffer size limited
+            while buffer.len() > MAX_LOG_LINES {
+                buffer.pop_front();
+            }
+        }
+
+        // Update TextView with all buffered logs
+        siv.call_on_name("log_view", |view: &mut Panel<ScrollView<TextView>>| {
+            let text_view = view.get_inner_mut().get_inner_mut();
+            let content = buffer.iter().cloned().collect::<Vec<_>>().join("\n");
+            text_view.set_content(content);
+        });
+    }
 }
 
 // Toggle between Run and Stop states
