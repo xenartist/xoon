@@ -123,17 +123,33 @@ pub fn get_validator_view() -> LinearLayout {
 
     // Create button layout with space between buttons
     let button_layout = LinearLayout::horizontal()
-        .child(Button::new("Save", |s| {
+        .child(Button::new("Save Script", |s| {
             save_script(s);
         }))
         .child(DummyView.fixed_width(4))
-        .child(Button::new(if is_running { "Stop" } else { "Run" }, move |s| {
+        .child(Button::new(if is_running { "Stop Validator" } else { "Start Validator" }, move |s| {
             // Auto save if modified before running
             if IS_SCRIPT_MODIFIED.load(Ordering::SeqCst) {
                 save_script(s);
             }
             toggle_run_stop(s);
-        }).with_name("run_button"));
+        }).with_name("run_button"))
+        .child(DummyView.fixed_width(4))
+        .child(Button::new("Refresh Logs", move |s| {
+            if is_validator_running() {
+                if let Some(log_path) = extract_log_path(&get_script_content()) {
+                    // Print log path to logs area
+                    update_logs(s, &format!("Monitoring log file: {}", &log_path));
+                    
+                    // Start log monitoring
+                    if let Some(process) = start_log_monitor(s, &log_path) {
+                        unsafe {
+                            TAIL_PROCESS = Some(process);
+                        }
+                    }
+                }
+            }
+        }));
 
     let config_content = LinearLayout::vertical()
         .child(ResizedView::with_full_screen(text_area))
@@ -158,19 +174,6 @@ pub fn get_validator_view() -> LinearLayout {
         .child(dashboard)
         .child(config)
         .child(logs);
-
-    // If validator is running, start monitoring logs
-    if is_running {
-        let script_content = get_script_content();
-        if let Some(log_path) = extract_log_path(&script_content) {
-            // Start log monitoring with the log path
-            if let Some(process) = start_log_monitor(&mut Cursive::default(), &log_path) {
-                unsafe {
-                    TAIL_PROCESS = Some(process);
-                }
-            }
-        }
-    }
     
     layout
 }
