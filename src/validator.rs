@@ -19,6 +19,9 @@ static IS_RUNNING: AtomicBool = AtomicBool::new(false);
 // Global variable to store tail process
 static mut TAIL_PROCESS: Option<Child> = None;
 
+// Add a constant for tracking script modification
+static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
+
 // Default validator script content
 const DEFAULT_SCRIPT: &str = r#"#!/bin/bash
 exec PATH_OF_solana-validator \
@@ -91,6 +94,10 @@ pub fn get_validator_view() -> LinearLayout {
         }))
         .child(DummyView.fixed_width(4))
         .child(Button::new("Run", move |s| {
+            // Auto save if modified before running
+            if IS_SCRIPT_MODIFIED.load(Ordering::SeqCst) {
+                save_script(s);
+            }
             toggle_run_stop(s);
         }).with_name("run_button"));
 
@@ -149,7 +156,7 @@ fn save_script(siv: &mut cursive::Cursive) {
                         }
                     }
                     
-                    // Update log to show success
+                    IS_SCRIPT_MODIFIED.store(false, Ordering::SeqCst);
                     update_logs(siv, "Script validator-testnet.sh saved successfully!");
                 },
                 Err(e) => {
