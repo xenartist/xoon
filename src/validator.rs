@@ -17,14 +17,14 @@ static mut TAIL_PROCESS: Option<Child> = None;
 
 // Default validator script content
 const DEFAULT_SCRIPT: &str = r#"#!/bin/bash
-exec PATH_OF_SOLANA_VALIDATOR \
+exec PATH_OF_solana-validator \
     --identity PATH_OF_identity.json \
-    --vote-account PUBLIC_ADDRESS_OF_vote.json \
+    --vote-account PUBLIC_ADDRESS_OF_VOTE \
     --known-validator Abt4r6uhFs7yPwR3jT5qbnLjBtasgHkRVAd1W6H5yonT \
     --known-validator 5NfpgFCwrYzcgJkda9bRJvccycLUo3dvVQsVAK2W43Um \
     --only-known-rpc \
-    --log PATH_OF_validator.log \
-    --ledger FOLDER_PATH_OF_ledger \
+    --log validator.log \
+    --ledger ledger \
     --rpc-port 8899 \
     --full-rpc-api \
     --dynamic-port-range 8000-8020 \
@@ -38,8 +38,7 @@ exec PATH_OF_SOLANA_VALIDATOR \
     --full-snapshot-interval-slots 5000 \
     --maximum-incremental-snapshots-to-retain 10 \
     --maximum-full-snapshots-to-retain 50 \
-    &
-"#;
+    &"#;
 
 // Initialize regex pattern for ANSI escape codes
 lazy_static! {
@@ -121,7 +120,8 @@ pub fn get_validator_view() -> LinearLayout {
 // Function to save script content to file
 fn save_script(siv: &mut cursive::Cursive) {
     let content = siv.call_on_name("script_content", |view: &mut TextArea| {
-        view.get_content().to_string()
+        // Trim any trailing whitespace or newlines
+        view.get_content().trim_end().to_string()
     }).unwrap_or_default();
     
     // Get current executable path
@@ -160,17 +160,33 @@ fn save_script(siv: &mut cursive::Cursive) {
 // Extract log file path from script content using regex
 fn extract_log_path(script_content: &str) -> Option<String> {
     let re = Regex::new(r"--log\s+([^\s\\]+)").ok()?;
-    re.captures(script_content)
+    let log_path = re.captures(script_content)
         .and_then(|caps| caps.get(1))
-        .map(|m| m.as_str().to_string())
+        .map(|m| m.as_str().to_string())?;
+
+    // Convert relative path to absolute path if needed
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let absolute_path = exe_dir.join(&log_path);
+            return Some(absolute_path.to_string_lossy().into_owned());
+        }
+    }
+    Some(log_path)
 }
 
 // Start tail process and monitor its output
 fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
+    // Create log file if it doesn't exist
+    if !std::path::Path::new(log_path).exists() {
+        if let Err(e) = std::fs::File::create(log_path) {
+            update_logs(siv, &format!("Failed to create log file: {}", e));
+            return None;
+        }
+    }
+    
     // Start tail command with -f (follow) and -n 10 (last 10 lines)
-    // Added --retry to keep trying if the file is inaccessible
     let mut cmd = Command::new("tail")
-        .args(["-f", "-n", "10", "--retry", log_path])
+        .args(["-f", "-n", "10", log_path])
         .stdout(std::process::Stdio::piped())
         .spawn()
         .ok()?;
@@ -207,6 +223,27 @@ fn toggle_run_stop(siv: &mut Cursive) {
         
         // Extract log path and start monitoring
         if let Some(log_path) = extract_log_path(&script_content) {
+            // Start the validator script
+            if let Ok(exe_path) = env::current_exe() {
+                if let Some(exe_dir) = exe_path.parent() {
+                    let script_path = exe_dir.join("validator-testnet.sh");
+                    
+                    // Execute the script
+                    match Command::new("bash")
+                        .arg(&script_path)
+                        .spawn() {
+                        Ok(_) => {
+                            update_logs(siv, "Validator script started successfully!");
+                        },
+                        Err(e) => {
+                            update_logs(siv, &format!("Failed to start validator: {}", e));
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Start log monitoring
             if let Some(process) = start_log_monitor(siv, &log_path) {
                 unsafe {
                     TAIL_PROCESS = Some(process);
