@@ -72,8 +72,42 @@ fn get_script_content() -> String {
     DEFAULT_SCRIPT.to_string()
 }
 
+// Add this function to check if validator is running
+fn is_validator_running() -> bool {
+    let output = Command::new("ps")
+        .args(["aux"])
+        .output()
+        .map(|output| {
+            let processes = String::from_utf8_lossy(&output.stdout);
+            processes.contains("solana-validator")
+        })
+        .unwrap_or(false);
+    
+    output
+}
+
+// Extract validator path from script content
+fn extract_validator_path(script_content: &str) -> Option<String> {
+    let re = Regex::new(r"exec\s+([^\s\\]+)").ok()?;
+    re.captures(script_content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
+// Add function to extract ledger path from script content
+fn extract_ledger_path(script_content: &str) -> Option<String> {
+    let re = Regex::new(r"--ledger\s+([^\s\\]+)").ok()?;
+    re.captures(script_content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
 // Create and return the validator view layout
 pub fn get_validator_view() -> LinearLayout {
+    // Check initial validator state
+    let is_running = is_validator_running();
+    IS_RUNNING.store(is_running, Ordering::SeqCst);
+
     // Create three sections
     let dashboard = Panel::new(TextView::new("Validator Dashboard"))
         .title("Dashboard")
@@ -93,7 +127,7 @@ pub fn get_validator_view() -> LinearLayout {
             save_script(s);
         }))
         .child(DummyView.fixed_width(4))
-        .child(Button::new("Run", move |s| {
+        .child(Button::new(if is_running { "Stop" } else { "Run" }, move |s| {
             // Auto save if modified before running
             if IS_SCRIPT_MODIFIED.load(Ordering::SeqCst) {
                 save_script(s);
@@ -124,6 +158,19 @@ pub fn get_validator_view() -> LinearLayout {
         .child(dashboard)
         .child(config)
         .child(logs);
+
+    // If validator is running, start monitoring logs
+    if is_running {
+        let script_content = get_script_content();
+        if let Some(log_path) = extract_log_path(&script_content) {
+            // Start log monitoring with the log path
+            if let Some(process) = start_log_monitor(&mut Cursive::default(), &log_path) {
+                unsafe {
+                    TAIL_PROCESS = Some(process);
+                }
+            }
+        }
+    }
     
     layout
 }
@@ -322,6 +369,33 @@ fn toggle_run_stop(siv: &mut Cursive) {
         IS_RUNNING.store(true, Ordering::SeqCst);
         
     } else {
+        // Get script content
+        let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
+            view.get_content().to_string()
+        }).unwrap_or_default();
+
+        // Get validator path and ledger path
+        if let (Some(validator_path), Some(ledger_path)) = (
+            extract_validator_path(&script_content),
+            extract_ledger_path(&script_content)
+        ) {
+            // Execute solana-validator exit command with ledger path
+            match Command::new(&validator_path)
+                .args(["--ledger", &ledger_path, "exit", "-f"])
+                .status() {
+                Ok(_) => {
+                    update_logs(siv, "Validator stopping gracefully...");
+                },
+                Err(e) => {
+                    update_logs(siv, &format!("Failed to stop validator: {}", e));
+                    return;
+                }
+            }
+        } else {
+            update_logs(siv, "Could not find validator path or ledger path in script");
+            return;
+        }
+
         // Stop log monitoring by killing tail process
         unsafe {
             if let Some(mut process) = TAIL_PROCESS.take() {
