@@ -108,11 +108,15 @@ pub fn get_validator_view() -> LinearLayout {
     let is_running = is_validator_running();
     IS_RUNNING.store(is_running, Ordering::SeqCst);
 
-    // Create three sections
-    let dashboard = Panel::new(TextView::new("Validator Dashboard"))
-        .title("Dashboard")
-        .full_width()
-        .fixed_height(5);
+    // Create dashboard with status information
+    let dashboard = Panel::new(
+        LinearLayout::horizontal()
+            .child(TextView::new("Validator Status: "))
+            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" }))
+    )
+    .title("Dashboard")
+    .full_width()
+    .fixed_height(5);
 
     // Create config section with TextArea and buttons
     let text_area = TextArea::new()
