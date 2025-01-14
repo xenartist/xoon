@@ -18,9 +18,6 @@ use std::sync::Mutex;
 // Global state for run/stop button
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
 
-// Global variable to store tail process
-static mut TAIL_PROCESS: Option<Child> = None;
-
 // Add a constant for tracking script modification
 static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
 
@@ -118,7 +115,8 @@ pub fn get_validator_view() -> LinearLayout {
     )
     .title("Dashboard")
     .full_width()
-    .fixed_height(5);
+    .fixed_height(5)
+    .with_name("dashboard");
 
     // Create config section with TextArea and buttons
     let text_area = TextArea::new()
@@ -404,6 +402,15 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         Ok(_) => {
                             update_logs(siv, "Validator script started successfully!");
                             update_logs(siv, "Use 'Check Validator Logs' button to view validator output");
+                            
+                            let cb_sink = siv.cb_sink().clone();
+                            std::thread::spawn(move || {
+                                std::thread::sleep(std::time::Duration::from_secs(10));
+
+                                let _ = cb_sink.send(Box::new(|s| {
+                                    update_dashboard(s);
+                                }));
+                            });
                         },
                         Err(e) => {
                             update_logs(siv, &format!("Failed to start validator: {}", e));
@@ -414,9 +421,9 @@ fn toggle_run_stop(siv: &mut Cursive) {
             }
         }
         
-        // Update button state to "Stop"
+        // Update button state to "Stop Validator"
         siv.call_on_name("run_button", |button: &mut Button| {
-            button.set_label("Stop");
+            button.set_label("Stop Validator");
         });
         IS_RUNNING.store(true, Ordering::SeqCst);
         
@@ -437,6 +444,15 @@ fn toggle_run_stop(siv: &mut Cursive) {
                 .status() {
                 Ok(_) => {
                     update_logs(siv, "Validator stopping gracefully...");
+
+                    let cb_sink = siv.cb_sink().clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(10));
+
+                        let _ = cb_sink.send(Box::new(|s| {
+                            update_dashboard(s);
+                        }));
+                    });
                 },
                 Err(e) => {
                     update_logs(siv, &format!("Failed to stop validator: {}", e));
@@ -447,18 +463,10 @@ fn toggle_run_stop(siv: &mut Cursive) {
             update_logs(siv, "Could not find validator path or ledger path in script");
             return;
         }
-
-        // Stop log monitoring by killing tail process
-        unsafe {
-            if let Some(mut process) = TAIL_PROCESS.take() {
-                let _ = process.kill();
-                let _ = process.wait();
-            }
-        }
         
-        // Update button state back to "Run"
+        // Update button state back to "Start Validator"
         siv.call_on_name("run_button", |button: &mut Button| {
-            button.set_label("Run");
+            button.set_label("Start Validator");
         });
         IS_RUNNING.store(false, Ordering::SeqCst);
     }
@@ -478,4 +486,20 @@ fn update_logs(siv: &mut Cursive, message: &str) {
         view.get_inner_mut().get_inner_mut().append(&clean_message);
         view.get_inner_mut().get_inner_mut().append("\n");
     });
+}
+
+fn update_dashboard(siv: &mut Cursive) {
+    let is_running = is_validator_running();
+
+    update_logs(siv, &format!("Checking validator status: {}", if is_running { "RUNNING" } else { "STOPPED" }));
+    
+    siv.call_on_name("dashboard", |view: &mut Panel<LinearLayout>| {
+        let new_layout = LinearLayout::horizontal()
+            .child(TextView::new("Validator Status: "))
+            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" }));
+        
+        *view.get_inner_mut() = new_layout;
+    });
+
+    siv.on_event(Event::Refresh);
 }
