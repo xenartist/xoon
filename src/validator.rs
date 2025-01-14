@@ -13,6 +13,8 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use cursive::theme::{BaseColor, Color, Effect, Style};
+use cursive::utils::markup::StyledString;
 
 
 // Global state for run/stop button
@@ -103,16 +105,17 @@ fn extract_ledger_path(script_content: &str) -> Option<String> {
 
 // Create and return the validator view layout
 pub fn get_validator_view() -> LinearLayout {
-    // Check initial validator state
-    let is_running = is_validator_running();
-    IS_RUNNING.store(is_running, Ordering::SeqCst);
+    let initial_status = if is_validator_running() { 
+        StyledString::styled("RUNNING", Style::from(Color::Dark(BaseColor::Green)))
+    } else {
+        StyledString::styled("STOPPED", Style::from(Color::Dark(BaseColor::Red)))
+    };
 
-    // Create dashboard with status information
     let dashboard = Panel::new(
         LinearLayout::horizontal()
             .child(TextView::new("Validator Status: "))
-            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" })
-                .with_name("status_text"))  // Add name to the status TextView
+            .child(TextView::new(initial_status)
+                .with_name("status_text"))
     )
     .title("Dashboard")
     .full_width()
@@ -160,7 +163,7 @@ pub fn get_validator_view() -> LinearLayout {
             }
         }).with_name("edit_save_button"))
         .child(DummyView.fixed_width(4))
-        .child(Button::new(if is_running { "Stop Validator" } else { "Start Validator" }, move |s| {
+        .child(Button::new(if is_validator_running() { "Stop Validator" } else { "Start Validator" }, move |s| {
             // Auto save if modified before running
             if IS_SCRIPT_MODIFIED.load(Ordering::SeqCst) {
                 save_script(s);
@@ -399,7 +402,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
                     .stderr(Stdio::piped())
                     .spawn() {
                     Ok(mut child) => {
-                        update_logs(siv, "Validator script started successfully!");
+                        update_logs(siv, "Validator script started successfully! Please wait for status update...");
                         
                         // Get handles for stdout and stderr
                         let stdout = child.stdout.take().expect("Failed to capture stdout");
@@ -479,7 +482,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
                     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
                     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
                     
-                    update_logs(siv, "Executing solana-validator exit command");
+                    update_logs(siv, "Executing solana-validator exit command. Please wait for status update...");
                     if !stdout.is_empty() {
                         update_logs(siv, "Exit command stdout:");
                         update_logs(siv, &stdout);
@@ -533,8 +536,13 @@ fn update_dashboard(siv: &mut Cursive) {
     // Add log output
     update_logs(siv, &format!("Checking validator status: {}", if is_running { "RUNNING" } else { "STOPPED" }));
     
-    // Update the status text directly
+    // Update the status text with color
     siv.call_on_name("status_text", |view: &mut TextView| {
-        view.set_content(if is_running { "RUNNING" } else { "STOPPED" });
+        let styled_status = if is_running {
+            StyledString::styled("RUNNING", Style::from(Color::Dark(BaseColor::Green)))
+        } else {
+            StyledString::styled("STOPPED", Style::from(Color::Dark(BaseColor::Red)))
+        };
+        view.set_content(styled_status);
     });
 }
