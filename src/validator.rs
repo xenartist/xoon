@@ -111,7 +111,8 @@ pub fn get_validator_view() -> LinearLayout {
     let dashboard = Panel::new(
         LinearLayout::horizontal()
             .child(TextView::new("Validator Status: "))
-            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" }))
+            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" })
+                .with_name("status_text"))  // Add name to the status TextView
     )
     .title("Dashboard")
     .full_width()
@@ -529,16 +530,15 @@ fn update_logs(siv: &mut Cursive, message: &str) {
 
 fn update_dashboard(siv: &mut Cursive) {
     let is_running = is_validator_running();
-
+    
+    // Add log output
     update_logs(siv, &format!("Checking validator status: {}", if is_running { "RUNNING" } else { "STOPPED" }));
     
-    siv.call_on_name("dashboard", |view: &mut Panel<LinearLayout>| {
-        let new_layout = LinearLayout::horizontal()
-            .child(TextView::new("Validator Status: "))
-            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" }));
-        
-        *view.get_inner_mut() = new_layout;
+    // Update the status text directly
+    siv.call_on_name("status_text", |view: &mut TextView| {
+        view.set_content(if is_running { "RUNNING" } else { "STOPPED" });
     });
 
+    // Force UI refresh
     siv.on_event(Event::Refresh);
 }
