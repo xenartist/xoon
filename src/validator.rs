@@ -170,7 +170,7 @@ pub fn get_validator_view() -> LinearLayout {
             toggle_run_stop(s);
         }).with_name("run_button"))
         .child(DummyView.fixed_width(4))
-        .child(Button::new("Refresh Logs", move |s| {
+        .child(Button::new("Check Validator Logs", move |s| {
             if is_validator_running() {
                 if let Some(log_path) = extract_log_path(&get_script_content()) {
                     // Print log path to logs area
@@ -403,7 +403,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         .spawn() {
                         Ok(_) => {
                             update_logs(siv, "Validator script started successfully!");
-                            update_logs(siv, "Use 'Refresh Logs' button to view validator output");
+                            update_logs(siv, "Use 'Check Validator Logs' button to view validator output");
                         },
                         Err(e) => {
                             update_logs(siv, &format!("Failed to start validator: {}", e));
