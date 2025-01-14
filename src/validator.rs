@@ -7,11 +7,13 @@ use regex::Regex;
 use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView};
 use cursive::traits::*;
 use cursive::Cursive;
+use cursive::event::Event;
 use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
+
 
 // Global state for run/stop button
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -121,15 +123,44 @@ pub fn get_validator_view() -> LinearLayout {
     // Create config section with TextArea and buttons
     let text_area = TextArea::new()
         .content(get_script_content())
+        .disabled()
         .with_name("script_content")
         .min_height(10)
         .max_height(24);
 
     // Create button layout with space between buttons
     let button_layout = LinearLayout::horizontal()
-        .child(Button::new("Save Script", |s| {
-            save_script(s);
-        }))
+        .child(Button::new("Edit Script", move |s| {
+            // Check TextArea's current state
+            let is_enabled = s.call_on_name("script_content", |view: &mut TextArea| {
+                view.is_enabled()
+            }).unwrap_or(false);
+            
+            // Log the current state
+            update_logs(s, &format!("Current TextArea enabled state: {}", is_enabled));
+
+            if !is_enabled {
+                // TextArea is disabled, switch to edit mode
+                update_logs(s, "Switching to edit mode...");
+                s.call_on_name("script_content", |view: &mut TextArea| {
+                    view.enable();  // Enable editing
+                });
+                s.call_on_name("edit_save_button", |view: &mut Button| {
+                    view.set_label("Save Script");
+                });
+            } else {
+                // TextArea is enabled, save and switch to view mode
+                update_logs(s, "Saving script and switching to view mode...");
+                save_script(s);
+                s.call_on_name("script_content", |view: &mut TextArea| {
+                    view.disable();  // Disable editing
+                });
+                s.call_on_name("edit_save_button", |view: &mut Button| {
+                    view.set_label("Edit Script");
+                });
+            }
+            s.on_event(Event::Refresh);
+        }).with_name("edit_save_button"))
         .child(DummyView.fixed_width(4))
         .child(Button::new(if is_running { "Stop Validator" } else { "Start Validator" }, move |s| {
             // Auto save if modified before running
