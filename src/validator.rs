@@ -1,4 +1,4 @@
-use std::process::{Command, Child};
+use std::process::{Command, Child, Stdio};
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
@@ -383,45 +383,55 @@ fn toggle_run_stop(siv: &mut Cursive) {
     let is_running = IS_RUNNING.load(Ordering::SeqCst);
     
     if !is_running {
-        // Get script content from TextArea
-        let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
-            view.get_content().to_string()
-        }).unwrap_or_default();
-        
-        // Extract log path
-        if let Some(log_path) = extract_log_path(&script_content) {
-            // Start the validator script
-            if let Ok(exe_path) = env::current_exe() {
-                if let Some(exe_dir) = exe_path.parent() {
-                    let script_path = exe_dir.join("validator-testnet.sh");
-                    
-                    // Execute the script
-                    match Command::new("bash")
-                        .arg(&script_path)
-                        .spawn() {
-                        Ok(_) => {
-                            update_logs(siv, "Validator script started successfully!");
-                            update_logs(siv, "Use 'Check Validator Logs' button to view validator output");
-                            
-                            let cb_sink = siv.cb_sink().clone();
-                            std::thread::spawn(move || {
-                                std::thread::sleep(std::time::Duration::from_secs(10));
-
-                                let _ = cb_sink.send(Box::new(|s| {
-                                    update_dashboard(s);
+        // Start validator logic
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let script_path = exe_dir.join("validator-testnet.sh");
+                
+                match Command::new("bash")
+                    .arg(&script_path)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn() {
+                    Ok(child) => {
+                        update_logs(siv, "Validator script started successfully!");
+                        
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            if let Ok(output) = child.wait_with_output() {
+                                let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+                                let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+                                
+                                let _ = cb_sink.send(Box::new(move |s| {
+                                    if !stdout.is_empty() {
+                                        update_logs(s, "Command stdout:");
+                                        update_logs(s, &stdout);
+                                    }
+                                    if !stderr.is_empty() {
+                                        update_logs(s, "Command stderr:");
+                                        update_logs(s, &stderr);
+                                    }
                                 }));
-                            });
-                        },
-                        Err(e) => {
-                            update_logs(siv, &format!("Failed to start validator: {}", e));
-                            return;
-                        }
+                            }
+                        });
+
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_secs(10));
+                            let _ = cb_sink.send(Box::new(|s| {
+                                update_dashboard(s);
+                            }));
+                        });
+                    },
+                    Err(e) => {
+                        update_logs(siv, &format!("Failed to start validator: {}", e));
+                        return;
                     }
                 }
             }
         }
         
-        // Update button state to "Stop Validator"
+        // Update button state to "Stop"
         siv.call_on_name("run_button", |button: &mut Button| {
             button.set_label("Stop Validator");
         });
@@ -441,30 +451,38 @@ fn toggle_run_stop(siv: &mut Cursive) {
             // Execute solana-validator exit command with ledger path
             match Command::new(&validator_path)
                 .args(["--ledger", &ledger_path, "exit", "-f"])
-                .status() {
-                Ok(_) => {
-                    update_logs(siv, "Validator stopping gracefully...");
-
-                    let cb_sink = siv.cb_sink().clone();
-                    std::thread::spawn(move || {
-                        std::thread::sleep(std::time::Duration::from_secs(10));
-
-                        let _ = cb_sink.send(Box::new(|s| {
-                            update_dashboard(s);
-                        }));
-                    });
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output() {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+                    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+                    
+                    update_logs(siv, "Executing solana-validator exit command");
+                    if !stdout.is_empty() {
+                        update_logs(siv, "Exit command stdout:");
+                        update_logs(siv, &stdout);
+                    }
+                    if !stderr.is_empty() {
+                        update_logs(siv, "Exit command stderr:");
+                        update_logs(siv, &stderr);
+                    }
                 },
                 Err(e) => {
-                    update_logs(siv, &format!("Failed to stop validator: {}", e));
-                    return;
+                    update_logs(siv, &format!("Failed to execute validator exit command: {}", e));
                 }
             }
-        } else {
-            update_logs(siv, "Could not find validator path or ledger path in script");
-            return;
         }
         
-        // Update button state back to "Start Validator"
+        let cb_sink = siv.cb_sink().clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+            let _ = cb_sink.send(Box::new(|s| {
+                update_dashboard(s);
+            }));
+        });
+        
+        // Update button state to "Start"
         siv.call_on_name("run_button", |button: &mut Button| {
             button.set_label("Start Validator");
         });
