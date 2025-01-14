@@ -158,7 +158,6 @@ pub fn get_validator_view() -> LinearLayout {
                     view.set_label("Edit Script");
                 });
             }
-            s.on_event(Event::Refresh);
         }).with_name("edit_save_button"))
         .child(DummyView.fixed_width(4))
         .child(Button::new(if is_running { "Stop Validator" } else { "Start Validator" }, move |s| {
@@ -538,7 +537,4 @@ fn update_dashboard(siv: &mut Cursive) {
     siv.call_on_name("status_text", |view: &mut TextView| {
         view.set_content(if is_running { "RUNNING" } else { "STOPPED" });
     });
-
-    // Force UI refresh
-    siv.on_event(Event::Refresh);
 }
