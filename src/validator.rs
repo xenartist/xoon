@@ -383,38 +383,61 @@ fn toggle_run_stop(siv: &mut Cursive) {
     let is_running = IS_RUNNING.load(Ordering::SeqCst);
     
     if !is_running {
-        // Start validator logic
+        // Get script content
+        let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
+            view.get_content().to_string()
+        }).unwrap_or_default();
+
         if let Ok(exe_path) = env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
                 let script_path = exe_dir.join("validator-testnet.sh");
                 
+                // execute the validator script
                 match Command::new("bash")
                     .arg(&script_path)
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn() {
-                    Ok(child) => {
+                    Ok(mut child) => {
                         update_logs(siv, "Validator script started successfully!");
                         
+                        // Get handles for stdout and stderr
+                        let stdout = child.stdout.take().expect("Failed to capture stdout");
+                        let stderr = child.stderr.take().expect("Failed to capture stderr");
+                        
+                        // Create new thread to handle stdout
                         let cb_sink = siv.cb_sink().clone();
                         std::thread::spawn(move || {
-                            if let Ok(output) = child.wait_with_output() {
-                                let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-                                let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-                                
-                                let _ = cb_sink.send(Box::new(move |s| {
-                                    if !stdout.is_empty() {
-                                        update_logs(s, "Command stdout:");
-                                        update_logs(s, &stdout);
-                                    }
-                                    if !stderr.is_empty() {
-                                        update_logs(s, "Command stderr:");
-                                        update_logs(s, &stderr);
-                                    }
-                                }));
+                            let reader = BufReader::new(stdout);
+                            for line in reader.lines() {
+                                if let Ok(line) = line {
+                                    let _ = cb_sink.send(Box::new(move |s| {
+                                        update_logs(s, &format!("Start command stdout: {}", line));
+                                    }));
+                                }
+                            }
+                        });
+                        
+                        // Create new thread to handle stderr
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            let reader = BufReader::new(stderr);
+                            for line in reader.lines() {
+                                if let Ok(line) = line {
+                                    let _ = cb_sink.send(Box::new(move |s| {
+                                        update_logs(s, &format!("Start command stderr: {}", line));
+                                    }));
+                                }
                             }
                         });
 
+                        // Create new thread to wait for process completion
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            let _ = child.wait();  // Wait for process to finish without blocking output
+                        });
+
+                        // Async status update
                         let cb_sink = siv.cb_sink().clone();
                         std::thread::spawn(move || {
                             std::thread::sleep(std::time::Duration::from_secs(10));
@@ -422,21 +445,19 @@ fn toggle_run_stop(siv: &mut Cursive) {
                                 update_dashboard(s);
                             }));
                         });
+
+                        // Update button state to "Stop"
+                        siv.call_on_name("run_button", |button: &mut Button| {
+                            button.set_label("Stop Validator");
+                        });
+                        IS_RUNNING.store(true, Ordering::SeqCst);
                     },
                     Err(e) => {
                         update_logs(siv, &format!("Failed to start validator: {}", e));
-                        return;
                     }
                 }
             }
         }
-        
-        // Update button state to "Stop"
-        siv.call_on_name("run_button", |button: &mut Button| {
-            button.set_label("Stop Validator");
-        });
-        IS_RUNNING.store(true, Ordering::SeqCst);
-        
     } else {
         // Get script content
         let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
