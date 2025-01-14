@@ -174,15 +174,35 @@ pub fn get_validator_view() -> LinearLayout {
             if is_validator_running() {
                 if let Some(log_path) = extract_log_path(&get_script_content()) {
                     // Print log path to logs area
-                    update_logs(s, &format!("Monitoring log file: {}", &log_path));
+                    update_logs(s, &format!("Reading log file: {}", &log_path));
                     
-                    // Start log monitoring
-                    if let Some(process) = start_log_monitor(s, &log_path) {
-                        unsafe {
-                            TAIL_PROCESS = Some(process);
+                    // Create a thread to read logs
+                    std::thread::spawn({
+                        let log_path = log_path.clone();
+                        let cb_sink = s.cb_sink().clone();
+                        move || {
+                            if let Ok(output) = Command::new("tail")
+                                .args(["-n", "20", &log_path])  // Changed from 69 to 20
+                                .output()
+                            {
+                                if let Ok(content) = String::from_utf8(output.stdout) {
+                                    // Clean ANSI escape sequences before displaying
+                                    let clean_content = clean_log_message(&content);
+                                    // Send the content back to the main thread
+                                    let _ = cb_sink.send(Box::new(move |s| {
+                                        update_logs(s, "=== Validator Logs Start ===");
+                                        update_logs(s, &clean_content);
+                                        update_logs(s, "=== Validator Logs End ===");
+                                    }));
+                                }
+                            }
                         }
-                    }
+                    });
+                    
+                    update_logs(s, "Log file refresh requested");
                 }
+            } else {
+                update_logs(s, "Validator is not running");
             }
         }));
 
@@ -370,7 +390,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
             view.get_content().to_string()
         }).unwrap_or_default();
         
-        // Extract log path and start monitoring
+        // Extract log path
         if let Some(log_path) = extract_log_path(&script_content) {
             // Start the validator script
             if let Ok(exe_path) = env::current_exe() {
@@ -383,19 +403,13 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         .spawn() {
                         Ok(_) => {
                             update_logs(siv, "Validator script started successfully!");
+                            update_logs(siv, "Use 'Refresh Logs' button to view validator output");
                         },
                         Err(e) => {
                             update_logs(siv, &format!("Failed to start validator: {}", e));
                             return;
                         }
                     }
-                }
-            }
-
-            // Start log monitoring
-            if let Some(process) = start_log_monitor(siv, &log_path) {
-                unsafe {
-                    TAIL_PROCESS = Some(process);
                 }
             }
         }
