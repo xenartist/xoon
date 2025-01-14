@@ -13,6 +13,8 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use cursive_tabs::TabPanel;
+use cursive::view::Nameable;
 
 
 // Global state for run/stop button
@@ -195,14 +197,25 @@ pub fn get_validator_view() -> LinearLayout {
         .full_width()
         .min_height(10);
 
-    let logs = Panel::new(
-        ScrollView::new(TextView::new(""))
-            .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
-    )
-    .title("Logs")
-    .with_name("log_view")
-    .full_width()
-    .min_height(8);
+    // Create two separate log views
+    let user_logs = ScrollView::new(TextView::new(""))
+        .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+        .with_name("user_log_view");
+    
+    let validator_logs = ScrollView::new(TextView::new(""))
+        .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+        .with_name("validator_log_view");
+
+    // Create tab panel for logs
+    let tabs = TabPanel::new()
+        .with_tab(user_logs.with_name("User Logs"))
+        .with_tab(validator_logs.with_name("Validator Logs"));
+
+    let logs = Panel::new(tabs)
+        .title("Logs")
+        .with_name("log_panel")
+        .full_width()
+        .min_height(8);
 
     // Combine sections vertically
     let layout = LinearLayout::vertical()
@@ -310,20 +323,20 @@ fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
 
     // Spawn another thread to batch process logs
     std::thread::spawn(move || {
-        let log_buffer = Arc::new(Mutex::new(VecDeque::with_capacity(MAX_LOG_LINES)));
+        let log_buffer = Arc::new(Mutex::new(VecDeque::<String>::with_capacity(MAX_LOG_LINES)));
         let mut batch = Vec::new();
         let mut last_update = std::time::Instant::now();
 
         while let Ok(line) = rx.recv() {
             batch.push(line);
 
-            // Update UI if we have collected enough lines or enough time has passed
             if batch.len() >= 10 || last_update.elapsed() >= std::time::Duration::from_millis(100) {
                 if !batch.is_empty() {
                     let messages = batch.join("\n");
                     let buffer_clone = Arc::clone(&log_buffer);
                     let _ = siv.send(Box::new(move |s| {
-                        update_logs_batch(s, &messages, &buffer_clone);
+                        // Use validator logs view with cleaned messages
+                        update_validator_logs(s, &messages);
                     }));
                     batch.clear();
                     last_update = std::time::Instant::now();
@@ -457,11 +470,19 @@ fn clean_log_message(message: &str) -> String {
 
 // Update the logs panel with new content
 fn update_logs(siv: &mut Cursive, message: &str) {
+    siv.call_on_name("user_log_view", |view: &mut ScrollView<TextView>| {
+        view.get_inner_mut().append(message);
+        view.get_inner_mut().append("\n");
+    });
+}
+
+// Update the validator logs with cleaned message
+fn update_validator_logs(siv: &mut Cursive, message: &str) {
     // Clean ANSI escape sequences before displaying
     let clean_message = clean_log_message(message);
     
-    siv.call_on_name("log_view", |view: &mut Panel<ScrollView<TextView>>| {
-        view.get_inner_mut().get_inner_mut().append(&clean_message);
-        view.get_inner_mut().get_inner_mut().append("\n");
+    siv.call_on_name("validator_log_view", |view: &mut ScrollView<TextView>| {
+        view.get_inner_mut().append(&clean_message);
+        view.get_inner_mut().append("\n");
     });
 }
