@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use cursive::theme::{BaseColor, Color, Effect, Style};
 use cursive::utils::markup::StyledString;
+use std::path::PathBuf;
 
 
 // Global state for run/stop button
@@ -101,6 +102,19 @@ fn extract_ledger_path(script_content: &str) -> Option<String> {
     re.captures(script_content)
         .and_then(|caps| caps.get(1))
         .map(|m| m.as_str().to_string())
+}
+
+// Add function to extract solana binary path
+fn extract_solana_path(script_content: &str) -> Option<PathBuf> {
+    if let Some(validator_line) = script_content.lines()
+        .find(|line| line.contains("exec") && line.contains("solana-validator")) {
+        if let Some(path) = validator_line.split("exec").nth(1) {
+            if let Some(validator_path) = path.trim().split_whitespace().next() {
+                return Some(PathBuf::from(validator_path).parent()?.join("solana"));
+            }
+        }
+    }
+    None
 }
 
 // Create and return the validator view layout
@@ -545,4 +559,65 @@ fn update_dashboard(siv: &mut Cursive) {
         };
         view.set_content(styled_status);
     });
+
+    // If validator is running, check catchup status
+    if is_running {
+        // Get script content to extract solana path
+        if let Some(script_content) = siv.call_on_name("script_content", |view: &mut TextArea| {
+            view.get_content().to_string()
+        }).as_deref() {
+            if let Some(solana_path) = extract_solana_path(script_content) {
+                // Create new thread for catchup check with delay
+                let cb_sink = siv.cb_sink().clone();
+                std::thread::spawn(move || {
+                    // Wait for 1 minute before checking catchup status
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                    
+                    let _ = cb_sink.send(Box::new(|s| {
+                        update_logs(s, "Starting catchup status check...");
+                    }));
+                    
+                    match Command::new(solana_path)
+                        .args(["catchup", "--our-localhost"])
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
+                        .spawn() {
+                        Ok(mut child) => {
+                            // Get stdout handle
+                            if let Some(stdout) = child.stdout.take() {
+                                let reader = BufReader::new(stdout);
+                                for line in reader.lines() {
+                                    if let Ok(line) = line {
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, &format!("Catchup status: {}", line));
+                                        }));
+                                    }
+                                }
+                            }
+
+                            // Get stderr handle
+                            if let Some(stderr) = child.stderr.take() {
+                                let reader = BufReader::new(stderr);
+                                for line in reader.lines() {
+                                    if let Ok(line) = line {
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, &format!("Catchup error: {}", line));
+                                        }));
+                                    }
+                                }
+                            }
+
+                            // Wait for process to complete
+                            let _ = child.wait();
+                        },
+                        Err(e) => {
+                            let _ = cb_sink.send(Box::new(move |s| {
+                                update_logs(s, &format!("Failed to execute catchup command: {}", e));
+                            }));
+                        }
+                    }
+                });
+            }
+        }
+    }
 }
