@@ -1,4 +1,4 @@
-use std::process::{Command, Child};
+use std::process::{Command, Child, Stdio};
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
@@ -13,15 +13,13 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
-use cursive_tabs::TabPanel;
-use cursive::view::Nameable;
+use cursive::theme::{BaseColor, Color, Effect, Style};
+use cursive::utils::markup::StyledString;
+use std::path::PathBuf;
 
 
 // Global state for run/stop button
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
-
-// Global variable to store tail process
-static mut TAIL_PROCESS: Option<Child> = None;
 
 // Add a constant for tracking script modification
 static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
@@ -106,21 +104,37 @@ fn extract_ledger_path(script_content: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
+// Add function to extract solana binary path
+fn extract_solana_path(script_content: &str) -> Option<PathBuf> {
+    if let Some(validator_line) = script_content.lines()
+        .find(|line| line.contains("exec") && line.contains("solana-validator")) {
+        if let Some(path) = validator_line.split("exec").nth(1) {
+            if let Some(validator_path) = path.trim().split_whitespace().next() {
+                return Some(PathBuf::from(validator_path).parent()?.join("solana"));
+            }
+        }
+    }
+    None
+}
+
 // Create and return the validator view layout
 pub fn get_validator_view() -> LinearLayout {
-    // Check initial validator state
-    let is_running = is_validator_running();
-    IS_RUNNING.store(is_running, Ordering::SeqCst);
+    let initial_status = if is_validator_running() { 
+        StyledString::styled("RUNNING", Style::from(Color::Dark(BaseColor::Green)))
+    } else {
+        StyledString::styled("STOPPED", Style::from(Color::Dark(BaseColor::Red)))
+    };
 
-    // Create dashboard with status information
     let dashboard = Panel::new(
         LinearLayout::horizontal()
             .child(TextView::new("Validator Status: "))
-            .child(TextView::new(if is_running { "RUNNING" } else { "STOPPED" }))
+            .child(TextView::new(initial_status)
+                .with_name("status_text"))
     )
     .title("Dashboard")
     .full_width()
-    .fixed_height(5);
+    .fixed_height(5)
+    .with_name("dashboard");
 
     // Create config section with TextArea and buttons
     let text_area = TextArea::new()
@@ -161,10 +175,9 @@ pub fn get_validator_view() -> LinearLayout {
                     view.set_label("Edit Script");
                 });
             }
-            s.on_event(Event::Refresh);
         }).with_name("edit_save_button"))
         .child(DummyView.fixed_width(4))
-        .child(Button::new(if is_running { "Stop Validator" } else { "Start Validator" }, move |s| {
+        .child(Button::new(if is_validator_running() { "Stop Validator" } else { "Start Validator" }, move |s| {
             // Auto save if modified before running
             if IS_SCRIPT_MODIFIED.load(Ordering::SeqCst) {
                 save_script(s);
@@ -172,7 +185,7 @@ pub fn get_validator_view() -> LinearLayout {
             toggle_run_stop(s);
         }).with_name("run_button"))
         .child(DummyView.fixed_width(4))
-        .child(Button::new("Refresh Logs", move |s| {
+        .child(Button::new("Check Validator Logs", move |s| {
             if is_validator_running() {
                 if let Some(log_path) = extract_log_path(&get_script_content()) {
                     // Print log path to logs area
@@ -217,25 +230,14 @@ pub fn get_validator_view() -> LinearLayout {
         .full_width()
         .min_height(10);
 
-    // Create two separate log views
-    let user_logs = ScrollView::new(TextView::new(""))
-        .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
-        .with_name("user_log_view");
-    
-    let validator_logs = ScrollView::new(TextView::new(""))
-        .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
-        .with_name("validator_log_view");
-
-    // Create tab panel for logs
-    let tabs = TabPanel::new()
-        .with_tab(user_logs.with_name("User Logs"))
-        .with_tab(validator_logs.with_name("Validator Logs"));
-
-    let logs = Panel::new(tabs)
-        .title("Logs")
-        .with_name("log_panel")
-        .full_width()
-        .min_height(8);
+    let logs = Panel::new(
+        ScrollView::new(TextView::new(""))
+            .scroll_strategy(cursive::view::ScrollStrategy::StickToBottom)
+    )
+    .title("Logs")
+    .with_name("log_view")
+    .full_width()
+    .min_height(8);
 
     // Combine sections vertically
     let layout = LinearLayout::vertical()
@@ -343,20 +345,20 @@ fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
 
     // Spawn another thread to batch process logs
     std::thread::spawn(move || {
-        let log_buffer = Arc::new(Mutex::new(VecDeque::<String>::with_capacity(MAX_LOG_LINES)));
+        let log_buffer = Arc::new(Mutex::new(VecDeque::with_capacity(MAX_LOG_LINES)));
         let mut batch = Vec::new();
         let mut last_update = std::time::Instant::now();
 
         while let Ok(line) = rx.recv() {
             batch.push(line);
 
+            // Update UI if we have collected enough lines or enough time has passed
             if batch.len() >= 10 || last_update.elapsed() >= std::time::Duration::from_millis(100) {
                 if !batch.is_empty() {
                     let messages = batch.join("\n");
                     let buffer_clone = Arc::clone(&log_buffer);
                     let _ = siv.send(Box::new(move |s| {
-                        // Use validator logs view with cleaned messages
-                        update_validator_logs(s, &messages);
+                        update_logs_batch(s, &messages, &buffer_clone);
                     }));
                     batch.clear();
                     last_update = std::time::Instant::now();
@@ -398,41 +400,81 @@ fn toggle_run_stop(siv: &mut Cursive) {
     let is_running = IS_RUNNING.load(Ordering::SeqCst);
     
     if !is_running {
-        // Get script content from TextArea
+        // Get script content
         let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
             view.get_content().to_string()
         }).unwrap_or_default();
-        
-        // Extract log path
-        if let Some(log_path) = extract_log_path(&script_content) {
-            // Start the validator script
-            if let Ok(exe_path) = env::current_exe() {
-                if let Some(exe_dir) = exe_path.parent() {
-                    let script_path = exe_dir.join("validator-testnet.sh");
-                    
-                    // Execute the script
-                    match Command::new("bash")
-                        .arg(&script_path)
-                        .spawn() {
-                        Ok(_) => {
-                            update_logs(siv, "Validator script started successfully!");
-                            update_logs(siv, "Use 'Refresh Logs' button to view validator output");
-                        },
-                        Err(e) => {
-                            update_logs(siv, &format!("Failed to start validator: {}", e));
-                            return;
-                        }
+
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let script_path = exe_dir.join("validator-testnet.sh");
+                
+                // execute the validator script
+                match Command::new("bash")
+                    .arg(&script_path)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn() {
+                    Ok(mut child) => {
+                        update_logs(siv, "Validator script started successfully! Please wait for status update...");
+                        
+                        // Get handles for stdout and stderr
+                        let stdout = child.stdout.take().expect("Failed to capture stdout");
+                        let stderr = child.stderr.take().expect("Failed to capture stderr");
+                        
+                        // Create new thread to handle stdout
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            let reader = BufReader::new(stdout);
+                            for line in reader.lines() {
+                                if let Ok(line) = line {
+                                    let _ = cb_sink.send(Box::new(move |s| {
+                                        update_logs(s, &format!("Start command stdout: {}", line));
+                                    }));
+                                }
+                            }
+                        });
+                        
+                        // Create new thread to handle stderr
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            let reader = BufReader::new(stderr);
+                            for line in reader.lines() {
+                                if let Ok(line) = line {
+                                    let _ = cb_sink.send(Box::new(move |s| {
+                                        update_logs(s, &format!("Start command stderr: {}", line));
+                                    }));
+                                }
+                            }
+                        });
+
+                        // Create new thread to wait for process completion
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            let _ = child.wait();  // Wait for process to finish without blocking output
+                        });
+
+                        // Async status update
+                        let cb_sink = siv.cb_sink().clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_secs(10));
+                            let _ = cb_sink.send(Box::new(|s| {
+                                update_dashboard(s);
+                            }));
+                        });
+
+                        // Update button state to "Stop"
+                        siv.call_on_name("run_button", |button: &mut Button| {
+                            button.set_label("Stop Validator");
+                        });
+                        IS_RUNNING.store(true, Ordering::SeqCst);
+                    },
+                    Err(e) => {
+                        update_logs(siv, &format!("Failed to start validator: {}", e));
                     }
                 }
             }
         }
-        
-        // Update button state to "Stop"
-        siv.call_on_name("run_button", |button: &mut Button| {
-            button.set_label("Stop");
-        });
-        IS_RUNNING.store(true, Ordering::SeqCst);
-        
     } else {
         // Get script content
         let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
@@ -447,31 +489,40 @@ fn toggle_run_stop(siv: &mut Cursive) {
             // Execute solana-validator exit command with ledger path
             match Command::new(&validator_path)
                 .args(["--ledger", &ledger_path, "exit", "-f"])
-                .status() {
-                Ok(_) => {
-                    update_logs(siv, "Validator stopping gracefully...");
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output() {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+                    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+                    
+                    update_logs(siv, "Executing solana-validator exit command. Please wait for status update...");
+                    if !stdout.is_empty() {
+                        update_logs(siv, "Exit command stdout:");
+                        update_logs(siv, &stdout);
+                    }
+                    if !stderr.is_empty() {
+                        update_logs(siv, "Exit command stderr:");
+                        update_logs(siv, &stderr);
+                    }
                 },
                 Err(e) => {
-                    update_logs(siv, &format!("Failed to stop validator: {}", e));
-                    return;
+                    update_logs(siv, &format!("Failed to execute validator exit command: {}", e));
                 }
-            }
-        } else {
-            update_logs(siv, "Could not find validator path or ledger path in script");
-            return;
-        }
-
-        // Stop log monitoring by killing tail process
-        unsafe {
-            if let Some(mut process) = TAIL_PROCESS.take() {
-                let _ = process.kill();
-                let _ = process.wait();
             }
         }
         
-        // Update button state back to "Run"
+        let cb_sink = siv.cb_sink().clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+            let _ = cb_sink.send(Box::new(|s| {
+                update_dashboard(s);
+            }));
+        });
+        
+        // Update button state to "Start"
         siv.call_on_name("run_button", |button: &mut Button| {
-            button.set_label("Run");
+            button.set_label("Start Validator");
         });
         IS_RUNNING.store(false, Ordering::SeqCst);
     }
@@ -484,19 +535,89 @@ fn clean_log_message(message: &str) -> String {
 
 // Update the logs panel with new content
 fn update_logs(siv: &mut Cursive, message: &str) {
-    siv.call_on_name("user_log_view", |view: &mut ScrollView<TextView>| {
-        view.get_inner_mut().append(message);
-        view.get_inner_mut().append("\n");
-    });
-}
-
-// Update the validator logs with cleaned message
-fn update_validator_logs(siv: &mut Cursive, message: &str) {
     // Clean ANSI escape sequences before displaying
     let clean_message = clean_log_message(message);
     
-    siv.call_on_name("validator_log_view", |view: &mut ScrollView<TextView>| {
-        view.get_inner_mut().append(&clean_message);
-        view.get_inner_mut().append("\n");
+    siv.call_on_name("log_view", |view: &mut Panel<ScrollView<TextView>>| {
+        view.get_inner_mut().get_inner_mut().append(&clean_message);
+        view.get_inner_mut().get_inner_mut().append("\n");
     });
+}
+
+fn update_dashboard(siv: &mut Cursive) {
+    let is_running = is_validator_running();
+    
+    // Add log output
+    update_logs(siv, &format!("Checking validator status: {}", if is_running { "RUNNING" } else { "STOPPED" }));
+    
+    // Update the status text with color
+    siv.call_on_name("status_text", |view: &mut TextView| {
+        let styled_status = if is_running {
+            StyledString::styled("RUNNING", Style::from(Color::Dark(BaseColor::Green)))
+        } else {
+            StyledString::styled("STOPPED", Style::from(Color::Dark(BaseColor::Red)))
+        };
+        view.set_content(styled_status);
+    });
+
+    // If validator is running, check catchup status
+    if is_running {
+        // Get script content to extract solana path
+        if let Some(script_content) = siv.call_on_name("script_content", |view: &mut TextArea| {
+            view.get_content().to_string()
+        }).as_deref() {
+            if let Some(solana_path) = extract_solana_path(script_content) {
+                // Create new thread for catchup check with delay
+                let cb_sink = siv.cb_sink().clone();
+                std::thread::spawn(move || {
+                    // Wait for 1 minute before checking catchup status
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                    
+                    let _ = cb_sink.send(Box::new(|s| {
+                        update_logs(s, "Starting catchup status check...");
+                    }));
+                    
+                    match Command::new(solana_path)
+                        .args(["catchup", "--our-localhost"])
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
+                        .spawn() {
+                        Ok(mut child) => {
+                            // Get stdout handle
+                            if let Some(stdout) = child.stdout.take() {
+                                let reader = BufReader::new(stdout);
+                                for line in reader.lines() {
+                                    if let Ok(line) = line {
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, &format!("Catchup status: {}", line));
+                                        }));
+                                    }
+                                }
+                            }
+
+                            // Get stderr handle
+                            if let Some(stderr) = child.stderr.take() {
+                                let reader = BufReader::new(stderr);
+                                for line in reader.lines() {
+                                    if let Ok(line) = line {
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, &format!("Catchup error: {}", line));
+                                        }));
+                                    }
+                                }
+                            }
+
+                            // Wait for process to complete
+                            let _ = child.wait();
+                        },
+                        Err(e) => {
+                            let _ = cb_sink.send(Box::new(move |s| {
+                                update_logs(s, &format!("Failed to execute catchup command: {}", e));
+                            }));
+                        }
+                    }
+                });
+            }
+        }
+    }
 }
