@@ -564,61 +564,78 @@ fn update_dashboard(siv: &mut Cursive) {
         view.set_content(styled_status);
     });
 
-    // If validator is running, check catchup status
+    // If validator is running, start periodic checks
     if is_running {
         // Get script content to extract solana path
         if let Some(script_content) = siv.call_on_name("script_content", |view: &mut TextArea| {
             view.get_content().to_string()
         }).as_deref() {
             if let Some(solana_path) = extract_solana_path(script_content) {
-                // Create new thread for catchup check with delay
+                // Create new thread for periodic checks
                 let cb_sink = siv.cb_sink().clone();
                 std::thread::spawn(move || {
-                    // Wait for 1 minute before checking catchup status
-                    std::thread::sleep(std::time::Duration::from_secs(60));
-                    
+                    // Initial wait for validator initialization
                     let _ = cb_sink.send(Box::new(|s| {
-                        update_logs(s, "Starting catchup status check...");
+                        update_logs(s, "Waiting 60 seconds for validator initialization before first catchup check...");
                     }));
-                    
-                    match Command::new(solana_path)
-                        .args(["catchup", "--our-localhost"])
-                        .stdout(Stdio::piped())
-                        .stderr(Stdio::piped())
-                        .spawn() {
-                        Ok(mut child) => {
-                            // Get stdout handle
-                            if let Some(stdout) = child.stdout.take() {
-                                let reader = BufReader::new(stdout);
-                                for line in reader.lines() {
-                                    if let Ok(line) = line {
-                                        let _ = cb_sink.send(Box::new(move |s| {
-                                            update_logs(s, &format!("Catchup status: {}", line));
-                                        }));
-                                    }
-                                }
-                            }
+                    std::thread::sleep(std::time::Duration::from_secs(60));
 
-                            // Get stderr handle
-                            if let Some(stderr) = child.stderr.take() {
-                                let reader = BufReader::new(stderr);
-                                for line in reader.lines() {
-                                    if let Ok(line) = line {
-                                        let _ = cb_sink.send(Box::new(move |s| {
-                                            update_logs(s, &format!("Catchup error: {}", line));
-                                        }));
-                                    }
-                                }
-                            }
-
-                            // Wait for process to complete
-                            let _ = child.wait();
-                        },
-                        Err(e) => {
-                            let _ = cb_sink.send(Box::new(move |s| {
-                                update_logs(s, &format!("Failed to execute catchup command: {}", e));
-                            }));
+                    loop {
+                        // Check if validator is still running
+                        if !is_validator_running() {
+                            break;
                         }
+
+                        // Check catchup status
+                        let _ = cb_sink.send(Box::new(|s| {
+                            update_logs(s, "Starting catchup status check...");
+                        }));
+                        
+                        match Command::new(&solana_path)
+                            .args(["catchup", "--our-localhost"])
+                            .stdout(Stdio::piped())
+                            .stderr(Stdio::piped())
+                            .spawn() {
+                            Ok(mut child) => {
+                                // Get stdout handle
+                                if let Some(stdout) = child.stdout.take() {
+                                    let reader = BufReader::new(stdout);
+                                    for line in reader.lines() {
+                                        if let Ok(line) = line {
+                                            let _ = cb_sink.send(Box::new(move |s| {
+                                                update_logs(s, &format!("Catchup status: {}", line));
+                                            }));
+                                        }
+                                    }
+                                }
+
+                                // Get stderr handle
+                                if let Some(stderr) = child.stderr.take() {
+                                    let reader = BufReader::new(stderr);
+                                    for line in reader.lines() {
+                                        if let Ok(line) = line {
+                                            let _ = cb_sink.send(Box::new(move |s| {
+                                                update_logs(s, &format!("Catchup error: {}", line));
+                                            }));
+                                        }
+                                    }
+                                }
+
+                                // Wait for process to complete
+                                let _ = child.wait();
+                            },
+                            Err(e) => {
+                                let _ = cb_sink.send(Box::new(move |s| {
+                                    update_logs(s, &format!("Failed to execute catchup command: {}", e));
+                                }));
+                            }
+                        }
+
+                        // Wait for 60 seconds before next check
+                        let _ = cb_sink.send(Box::new(|s| {
+                            update_logs(s, "Waiting 60 seconds before next catchup check...");
+                        }));
+                        std::thread::sleep(std::time::Duration::from_secs(60));
                     }
                 });
             }
