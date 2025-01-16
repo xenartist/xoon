@@ -39,9 +39,9 @@ exec solana-validator \
     --rpc-port 8899 \
     --full-rpc-api \
     --dynamic-port-range 8000-8020 \
-    --entrypoint1.testnet.x1.xyz:8001 \
-    --entrypoint2.testnet.x1.xyz:8000 \
-    --entrypoint3.testnet.x1.xyz:8000 \
+    --entrypoint.testnet.x1.xyz:8001 \
+    --entrypoint.testnet.x1.xyz:8000 \
+    --entrypoint.testnet.x1.xyz:8000 \
     --entrypoint owlnet.dev:8001 \
     --wal-recovery-mode skip_any_corrupted_record \
     --limit-ledger-size 50000000 \
