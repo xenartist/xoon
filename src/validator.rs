@@ -18,9 +18,6 @@ use cursive::utils::markup::StyledString;
 use std::path::PathBuf;
 
 
-// Global state for run/stop button
-static IS_RUNNING: AtomicBool = AtomicBool::new(false);
-
 // Add a constant for tracking script modification
 static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
 
@@ -401,7 +398,7 @@ fn update_logs_batch(siv: &mut Cursive, messages: &str, log_buffer: &Arc<Mutex<V
 
 // Toggle between Run and Stop states
 fn toggle_run_stop(siv: &mut Cursive) {
-    let is_running = IS_RUNNING.load(Ordering::SeqCst);
+    let is_running = is_validator_running();
     
     if !is_running {
         // Get script content
@@ -471,7 +468,6 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         siv.call_on_name("run_button", |button: &mut Button| {
                             button.set_label("Stop Validator");
                         });
-                        IS_RUNNING.store(true, Ordering::SeqCst);
                     },
                     Err(e) => {
                         update_logs(siv, &format!("Failed to start validator: {}", e));
@@ -528,7 +524,6 @@ fn toggle_run_stop(siv: &mut Cursive) {
         siv.call_on_name("run_button", |button: &mut Button| {
             button.set_label("Start Validator");
         });
-        IS_RUNNING.store(false, Ordering::SeqCst);
     }
 }
 
