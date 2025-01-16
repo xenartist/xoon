@@ -659,11 +659,11 @@ fn update_dashboard(siv: &mut Cursive) {
                             }
                         }
 
-                        // Wait for 60 seconds before next check
+                        // Wait for 600 seconds before next check
                         let _ = cb_sink.send(Box::new(|s| {
-                            update_logs(s, "Waiting 60 seconds before next catchup check...");
+                            update_logs(s, "Waiting 600 seconds before next catchup check...");
                         }));
-                        std::thread::sleep(std::time::Duration::from_secs(60));//Debugging, need change to 600 seconds
+                        std::thread::sleep(std::time::Duration::from_secs(600));
                     }
 
                     // Update button state when auto-checking stops
