@@ -21,6 +21,9 @@ use std::path::PathBuf;
 // Add a constant for tracking script modification
 static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
 
+// Add a constant for tracking auto check status
+static IS_AUTO_CHECKING: AtomicBool = AtomicBool::new(false);
+
 // Default validator script content
 const DEFAULT_SCRIPT: &str = r#"#!/bin/bash
 exec solana-validator \
@@ -185,6 +188,25 @@ pub fn get_validator_view() -> LinearLayout {
             }
             toggle_run_stop(s);
         }).with_name("run_button"))
+        .child(DummyView.fixed_width(4))
+        .child(Button::new("Auto Check Status", move |s| {
+            if IS_AUTO_CHECKING.load(Ordering::SeqCst) {
+                // Stop auto checking
+                IS_AUTO_CHECKING.store(false, Ordering::SeqCst);
+                s.call_on_name("auto_check_button", |button: &mut Button| {
+                    button.set_label("Auto Check Status");
+                });
+                update_logs(s, "Stopped auto checking status");
+            } else {
+                // Start auto checking
+                IS_AUTO_CHECKING.store(true, Ordering::SeqCst);
+                s.call_on_name("auto_check_button", |button: &mut Button| {
+                    button.set_label("Stop Checking Status");
+                });
+                update_logs(s, "Started auto checking status");
+                update_dashboard(s);
+            }
+        }).with_name("auto_check_button"))
         .child(DummyView.fixed_width(4))
         .child(Button::new("Check Validator Logs", move |s| {
             if is_validator_running() {
@@ -460,6 +482,12 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         std::thread::spawn(move || {
                             std::thread::sleep(std::time::Duration::from_secs(10));
                             let _ = cb_sink.send(Box::new(|s| {
+                                // Start auto checking
+                                IS_AUTO_CHECKING.store(true, Ordering::SeqCst);
+                                s.call_on_name("auto_check_button", |button: &mut Button| {
+                                    button.set_label("Stop Checking Status");
+                                });
+                                update_logs(s, "Started auto checking status");
                                 update_dashboard(s);
                             }));
                         });
@@ -516,6 +544,11 @@ fn toggle_run_stop(siv: &mut Cursive) {
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_secs(10));
             let _ = cb_sink.send(Box::new(|s| {
+                // Stop auto checking
+                IS_AUTO_CHECKING.store(false, Ordering::SeqCst);
+                s.call_on_name("auto_check_button", |button: &mut Button| {
+                    button.set_label("Auto Check Status");
+                });
                 update_dashboard(s);
             }));
         });
@@ -571,11 +604,11 @@ fn update_dashboard(siv: &mut Cursive) {
                 std::thread::spawn(move || {
                     // Initial wait for validator initialization
                     let _ = cb_sink.send(Box::new(|s| {
-                        update_logs(s, "Waiting 60 seconds for validator initialization before first catchup check...");
+                        update_logs(s, "Waiting for a while before first catchup check...");
                     }));
                     std::thread::sleep(std::time::Duration::from_secs(60));
 
-                    loop {
+                    while IS_AUTO_CHECKING.load(Ordering::SeqCst) {
                         // Check if validator is still running
                         if !is_validator_running() {
                             break;
@@ -632,6 +665,15 @@ fn update_dashboard(siv: &mut Cursive) {
                         }));
                         std::thread::sleep(std::time::Duration::from_secs(60));//Debugging, need change to 600 seconds
                     }
+
+                    // Update button state when auto-checking stops
+                    let _ = cb_sink.send(Box::new(|s| {
+                        s.call_on_name("auto_check_button", |button: &mut Button| {
+                            button.set_label("Auto Check Status");
+                        });
+                        IS_AUTO_CHECKING.store(false, Ordering::SeqCst);
+                        update_logs(s, "Stopped auto checking status");
+                    }));
                 });
             }
         }
