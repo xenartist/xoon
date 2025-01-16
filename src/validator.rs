@@ -26,18 +26,22 @@ static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
 
 // Default validator script content
 const DEFAULT_SCRIPT: &str = r#"#!/bin/bash
-exec PATH_OF_solana-validator \
-    --identity PATH_OF_identity.json \
-    --vote-account PUBLIC_ADDRESS_OF_VOTE \
+exec solana-validator \
+    --identity ~/.config/solana/identity.json \
+    --vote-account ~/.config/solana/vote.json \
     --known-validator Abt4r6uhFs7yPwR3jT5qbnLjBtasgHkRVAd1W6H5yonT \
     --known-validator 5NfpgFCwrYzcgJkda9bRJvccycLUo3dvVQsVAK2W43Um \
+    --known-validator FcrZRBfVk2h634L9yvkysJdmvdAprq1NM4u263NuR6LC \
+    --known-validator Tpsu5EYTJAXAat19VEh54zuauHvUBuryivSFRC3RiFk \
     --only-known-rpc \
-    --log validator.log \
-    --ledger ledger \
+    --log ./validator.log \
+    --ledger ./ledger \
     --rpc-port 8899 \
     --full-rpc-api \
     --dynamic-port-range 8000-8020 \
-    --entrypoint xolana.xen.network:8001 \
+    --entrypoint1.testnet.x1.xyz:8001 \
+    --entrypoint2.testnet.x1.xyz:8000 \
+    --entrypoint3.testnet.x1.xyz:8000 \
     --entrypoint owlnet.dev:8001 \
     --wal-recovery-mode skip_any_corrupted_record \
     --limit-ledger-size 50000000 \
