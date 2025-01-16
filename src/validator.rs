@@ -630,7 +630,7 @@ fn update_dashboard(siv: &mut Cursive) {
                         let _ = cb_sink.send(Box::new(|s| {
                             update_logs(s, "Waiting 60 seconds before next catchup check...");
                         }));
-                        std::thread::sleep(std::time::Duration::from_secs(60));
+                        std::thread::sleep(std::time::Duration::from_secs(60));//Debugging, need change to 600 seconds
                     }
                 });
             }
