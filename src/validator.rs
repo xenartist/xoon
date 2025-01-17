@@ -16,6 +16,7 @@ use std::sync::Mutex;
 use cursive::theme::{BaseColor, Color, Effect, Style};
 use cursive::utils::markup::StyledString;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 
 // Add a constant for tracking script modification
@@ -630,7 +631,7 @@ fn update_dashboard(siv: &mut Cursive) {
                 std::thread::spawn(move || {
                     // Initial wait for validator initialization
                     let _ = cb_sink.send(Box::new(|s| {
-                        update_logs(s, "Waiting for a while before first catchup check...");
+                        update_logs(s, "Waiting for a while before catchup check...");
                     }));
                     std::thread::sleep(std::time::Duration::from_secs(60));
 
@@ -660,33 +661,57 @@ fn update_dashboard(siv: &mut Cursive) {
                                 // Get stdout handle
                                 if let Some(stdout) = child.stdout.take() {
                                     let reader = BufReader::new(stdout);
-                                    for line in reader.lines() {
-                                        if let Ok(line) = line {
-                                            let _ = cb_sink.send(Box::new(move |s| {
-                                                update_logs(s, &format!("Catchup status: {}", line));
-                                                
-                                                // Update dashboard catchup status based on the line content
-                                                if line.contains("has caught up") {
-                                                    s.call_on_name("catchup_status_text", |view: &mut TextView| {
-                                                        view.set_content(StyledString::styled(
-                                                            "CAUGHT UP",
-                                                            Style::from(Color::Dark(BaseColor::Green))
-                                                        ));
-                                                    });
-                                                } else if line.contains("error") || line.contains("Error") {
-                                                    s.call_on_name("catchup_status_text", |view: &mut TextView| {
-                                                        view.set_content(StyledString::styled(
-                                                            "N/A",
-                                                            Style::from(Color::Dark(BaseColor::Yellow))
-                                                        ));
-                                                    });
-                                                }
+                                    let start_time = Instant::now();
+                                    let timeout = Duration::from_secs(300); // 5 minutes
+                                    let mut has_output = false;
+
+                                    // Create a separate thread to read stdout
+                                    let cb_sink_clone = cb_sink.clone();
+                                    std::thread::spawn(move || {
+                                        for line in reader.lines() {
+                                            has_output = true;
+                                            if let Ok(line) = line {
+                                                let _ = cb_sink_clone.send(Box::new(move |s| {
+                                                    update_logs(s, &format!("Catchup status: {}", line));
+                                                    
+                                                    // Update dashboard catchup status based on the line content
+                                                    if line.contains("has caught up") {
+                                                        s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                            view.set_content(StyledString::styled(
+                                                                "CAUGHT UP",
+                                                                Style::from(Color::Dark(BaseColor::Green))
+                                                            ));
+                                                        });
+                                                    } else if line.contains("error") || line.contains("Error") {
+                                                        s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                            view.set_content(StyledString::styled(
+                                                                "N/A",
+                                                                Style::from(Color::Dark(BaseColor::Yellow))
+                                                            ));
+                                                        });
+                                                    }
+                                                }));
+                                            }
+
+                                            // Check for timeout
+                                            if start_time.elapsed() >= timeout {
+                                                let _ = cb_sink_clone.send(Box::new(|s| {
+                                                    update_logs(s, "Our node is falling behind");
+                                                }));
+                                                break;
+                                            }
+                                        }
+
+                                        // If no output received within timeout
+                                        if !has_output && start_time.elapsed() >= timeout {
+                                            let _ = cb_sink_clone.send(Box::new(|s| {
+                                                update_logs(s, "Our node is falling behind");
                                             }));
                                         }
-                                    }
+                                    });
                                 }
 
-                                // Get stderr handle
+                                // Get stderr handle (keep existing error handling)
                                 if let Some(stderr) = child.stderr.take() {
                                     let reader = BufReader::new(stderr);
                                     for line in reader.lines() {
