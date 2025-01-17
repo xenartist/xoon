@@ -130,10 +130,15 @@ pub fn get_validator_view() -> LinearLayout {
     };
 
     let dashboard = Panel::new(
-        LinearLayout::horizontal()
-            .child(TextView::new("Validator Status: "))
-            .child(TextView::new(initial_status)
-                .with_name("status_text"))
+        LinearLayout::vertical()
+            .child(LinearLayout::horizontal()
+                .child(TextView::new("Validator Status: "))
+                .child(TextView::new(initial_status)
+                    .with_name("status_text")))
+            .child(LinearLayout::horizontal()
+                .child(TextView::new("Catchup Status: "))
+                .child(TextView::new(StyledString::styled("N/A", Style::from(Color::Dark(BaseColor::Yellow))))
+                    .with_name("catchup_status_text")))
     )
     .title("Dashboard")
     .full_width()
@@ -582,7 +587,7 @@ fn update_dashboard(siv: &mut Cursive) {
     // Add log output
     update_logs(siv, &format!("Checking validator status: {}", if is_running { "RUNNING" } else { "STOPPED" }));
     
-    // Update the status text with color
+    // Update the validator status text with color
     siv.call_on_name("status_text", |view: &mut TextView| {
         let styled_status = if is_running {
             StyledString::styled("RUNNING", Style::from(Color::Dark(BaseColor::Green)))
@@ -611,6 +616,12 @@ fn update_dashboard(siv: &mut Cursive) {
                     while IS_AUTO_CHECKING.load(Ordering::SeqCst) {
                         // Check if validator is still running
                         if !is_validator_running() {
+                            // Update catchup status to N/A when validator stops
+                            let _ = cb_sink.send(Box::new(|s| {
+                                s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                    view.set_content(StyledString::styled("N/A", Style::from(Color::Dark(BaseColor::Yellow))));
+                                });
+                            }));
                             break;
                         }
 
@@ -632,6 +643,16 @@ fn update_dashboard(siv: &mut Cursive) {
                                         if let Ok(line) = line {
                                             let _ = cb_sink.send(Box::new(move |s| {
                                                 update_logs(s, &format!("Catchup status: {}", line));
+                                                
+                                                // Update dashboard catchup status if "has caught up" is found
+                                                if line.contains("has caught up") {
+                                                    s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                        view.set_content(StyledString::styled(
+                                                            "CAUGHT UP",
+                                                            Style::from(Color::Dark(BaseColor::Green))
+                                                        ));
+                                                    });
+                                                }
                                             }));
                                         }
                                     }
@@ -665,6 +686,13 @@ fn update_dashboard(siv: &mut Cursive) {
                         }));
                         std::thread::sleep(std::time::Duration::from_secs(600));
                     }
+
+                    // When auto-checking stops, reset catchup status to N/A
+                    let _ = cb_sink.send(Box::new(|s| {
+                        s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                            view.set_content(StyledString::styled("N/A", Style::from(Color::Dark(BaseColor::Yellow))));
+                        });
+                    }));
 
                     // Update button state when auto-checking stops
                     let _ = cb_sink.send(Box::new(|s| {
