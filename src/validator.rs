@@ -657,23 +657,18 @@ fn update_dashboard(siv: &mut Cursive) {
                                 "-f", 
                                 "catchup.status", 
                                 "-c", 
-                                &format!("timeout 0.5s {} catchup --our-localhost", solana_path.display())
+                                &format!("timeout 0.2s {} catchup --our-localhost", solana_path.display())
                             ])
                             .output() {
                             Ok(_) => {
                                 // Try to read the status file
-                                if let Ok(file) = File::open("catchup.status") {
-                                    let reader = BufReader::new(file);
-                                    'outer: for line in reader.lines() {
-                                        if let Ok(line) = line {
-                                            if line.contains("slot(s) behind") {
-                                                let line_clone = line.clone();
-                                                let _ = cb_sink.send(Box::new(move |s| {
-                                                    update_logs(s, &format!("Catchup status: {}", line_clone));
-                                                }));
-                                                break 'outer;
-                                            }
-                                        }
+                                if let Ok(content) = fs::read_to_string("catchup.status") {
+                                    if let Some(line) = content.lines()
+                                        .find(|line| line.contains("slot(s) behind")) {
+                                        let line_clone = line.to_string();
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, &format!("Catchup status: {}", line_clone));
+                                        }));
                                     }
                                 }
 
