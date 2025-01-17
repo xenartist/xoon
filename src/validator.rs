@@ -187,10 +187,6 @@ pub fn get_validator_view() -> LinearLayout {
         }).with_name("edit_save_button"))
         .child(DummyView.fixed_width(4))
         .child(Button::new(if is_validator_running() { "Stop Validator" } else { "Start Validator" }, move |s| {
-            // Auto save if modified before running
-            if IS_SCRIPT_MODIFIED.load(Ordering::SeqCst) {
-                save_script(s);
-            }
             toggle_run_stop(s);
         }).with_name("run_button"))
         .child(DummyView.fixed_width(4))
@@ -547,7 +543,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
         
         let cb_sink = siv.cb_sink().clone();
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_secs(10));
+            std::thread::sleep(std::time::Duration::from_secs(60));
             let _ = cb_sink.send(Box::new(|s| {
                 // Stop auto checking
                 IS_AUTO_CHECKING.store(false, Ordering::SeqCst);
@@ -597,6 +593,13 @@ fn update_dashboard(siv: &mut Cursive) {
         view.set_content(styled_status);
     });
 
+    // Immediately update catchup status based on validator state
+    siv.call_on_name("catchup_status_text", |view: &mut TextView| {
+        if !is_running {
+            view.set_content(StyledString::styled("N/A", Style::from(Color::Dark(BaseColor::Yellow))));
+        }
+    });
+
     // If validator is running, start periodic checks
     if is_running {
         // Get script content to extract solana path
@@ -644,12 +647,19 @@ fn update_dashboard(siv: &mut Cursive) {
                                             let _ = cb_sink.send(Box::new(move |s| {
                                                 update_logs(s, &format!("Catchup status: {}", line));
                                                 
-                                                // Update dashboard catchup status if "has caught up" is found
+                                                // Update dashboard catchup status based on the line content
                                                 if line.contains("has caught up") {
                                                     s.call_on_name("catchup_status_text", |view: &mut TextView| {
                                                         view.set_content(StyledString::styled(
                                                             "CAUGHT UP",
                                                             Style::from(Color::Dark(BaseColor::Green))
+                                                        ));
+                                                    });
+                                                } else if line.contains("error") || line.contains("Error") {
+                                                    s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                        view.set_content(StyledString::styled(
+                                                            "N/A",
+                                                            Style::from(Color::Dark(BaseColor::Yellow))
                                                         ));
                                                     });
                                                 }
