@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
 use std::fs;
 use regex::Regex;
-use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView};
+use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView, Dialog};
 use cursive::traits::*;
 use cursive::Cursive;
 use cursive::event::Event;
@@ -187,6 +187,24 @@ pub fn get_validator_view() -> LinearLayout {
         }).with_name("edit_save_button"))
         .child(DummyView.fixed_width(4))
         .child(Button::new(if is_validator_running() { "Stop Validator" } else { "Start Validator" }, move |s| {
+            if !is_validator_running() {
+                // Check if script is in edit mode
+                let is_editing = s.call_on_name("script_content", |view: &mut TextArea| {
+                    view.is_enabled()
+                }).unwrap_or(false);
+
+                if is_editing {
+                    // Show dialog to remind user to save script first
+                    s.add_layer(
+                        Dialog::around(TextView::new("Please save the script before starting validator"))
+                            .title("Save Required")
+                            .button("Got it", |s| {
+                                s.pop_layer();
+                            })
+                    );
+                    return;
+                }
+            }
             toggle_run_stop(s);
         }).with_name("run_button"))
         .child(DummyView.fixed_width(4))
