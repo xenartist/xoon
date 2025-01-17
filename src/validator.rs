@@ -2,7 +2,7 @@ use std::process::{Command, Child, Stdio};
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
-use std::fs;
+use std::fs::{self, File};
 use regex::Regex;
 use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView, Dialog};
 use cursive::traits::*;
@@ -652,83 +652,38 @@ fn update_dashboard(siv: &mut Cursive) {
                             update_logs(s, "Starting catchup status check...");
                         }));
                         
-                        match Command::new(&solana_path)
-                            .args(["catchup", "--our-localhost"])
-                            .stdout(Stdio::piped())
-                            .stderr(Stdio::piped())
-                            .spawn() {
-                            Ok(mut child) => {
-                                // Get stdout handle
-                                if let Some(stdout) = child.stdout.take() {
-                                    let reader = BufReader::new(stdout);
-                                    let start_time = Instant::now();
-                                    let timeout = Duration::from_secs(300); // 5 minutes
-                                    let mut has_output = false;
-
-                                    // Create a separate thread to read stdout
-                                    let cb_sink_clone = cb_sink.clone();
-                                    std::thread::spawn(move || {
-                                        for line in reader.lines() {
-                                            has_output = true;
-                                            if let Ok(line) = line {
-                                                let _ = cb_sink_clone.send(Box::new(move |s| {
-                                                    update_logs(s, &format!("Catchup status: {}", line));
-                                                    
-                                                    // Update dashboard catchup status based on the line content
-                                                    if line.contains("has caught up") {
-                                                        s.call_on_name("catchup_status_text", |view: &mut TextView| {
-                                                            view.set_content(StyledString::styled(
-                                                                "CAUGHT UP",
-                                                                Style::from(Color::Dark(BaseColor::Green))
-                                                            ));
-                                                        });
-                                                    } else if line.contains("error") || line.contains("Error") {
-                                                        s.call_on_name("catchup_status_text", |view: &mut TextView| {
-                                                            view.set_content(StyledString::styled(
-                                                                "N/A",
-                                                                Style::from(Color::Dark(BaseColor::Yellow))
-                                                            ));
-                                                        });
-                                                    }
-                                                }));
-                                            }
-
-                                            // Check for timeout
-                                            if start_time.elapsed() >= timeout {
-                                                let _ = cb_sink_clone.send(Box::new(|s| {
-                                                    update_logs(s, "Our node is falling behind");
-                                                }));
-                                                break;
-                                            }
-                                        }
-
-                                        // If no output received within timeout
-                                        if !has_output && start_time.elapsed() >= timeout {
-                                            let _ = cb_sink_clone.send(Box::new(|s| {
-                                                update_logs(s, "Our node is falling behind");
-                                            }));
-                                        }
-                                    });
-                                }
-
-                                // Get stderr handle (keep existing error handling)
-                                if let Some(stderr) = child.stderr.take() {
-                                    let reader = BufReader::new(stderr);
-                                    for line in reader.lines() {
+                        match Command::new("script")
+                            .args([
+                                "-f", 
+                                "catchup.status", 
+                                "-c", 
+                                &format!("timeout 0.5s {} catchup --our-localhost", solana_path.display())
+                            ])
+                            .output() {
+                            Ok(_) => {
+                                // Try to read the status file
+                                if let Ok(file) = File::open("catchup.status") {
+                                    let reader = BufReader::new(file);
+                                    'outer: for line in reader.lines() {
                                         if let Ok(line) = line {
-                                            let _ = cb_sink.send(Box::new(move |s| {
-                                                update_logs(s, &format!("Catchup error: {}", line));
-                                            }));
+                                            if line.contains("slot(s) behind") {
+                                                let line_clone = line.clone();
+                                                let _ = cb_sink.send(Box::new(move |s| {
+                                                    update_logs(s, &format!("Catchup status: {}", line_clone));
+                                                }));
+                                                break 'outer;
+                                            }
                                         }
                                     }
                                 }
 
-                                // Wait for process to complete
-                                let _ = child.wait();
+                                // Clean up the status file
+                                let _ = std::fs::remove_file("catchup.status");
                             },
                             Err(e) => {
+                                let err_msg = e.to_string();
                                 let _ = cb_sink.send(Box::new(move |s| {
-                                    update_logs(s, &format!("Failed to execute catchup command: {}", e));
+                                    update_logs(s, &format!("Failed to execute catchup command: {}", err_msg));
                                 }));
                             }
                         }
