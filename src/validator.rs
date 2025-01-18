@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
 use std::fs::{self, File};
 use regex::Regex;
-use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView, Dialog};
+use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView, Dialog, RadioGroup};
 use cursive::traits::*;
 use cursive::Cursive;
 use cursive::event::Event;
@@ -26,7 +26,7 @@ static IS_SCRIPT_MODIFIED: AtomicBool = AtomicBool::new(false);
 static IS_AUTO_CHECKING: AtomicBool = AtomicBool::new(false);
 
 // Default validator script content
-const DEFAULT_SCRIPT: &str = r#"#!/bin/bash
+const DEFAULT_TESTNET_SCRIPT: &str = r#"#!/bin/bash
 exec solana-validator \
     --identity ~/.config/solana/identity.json \
     --vote-account ~/.config/solana/vote.json \
@@ -152,7 +152,16 @@ pub fn get_validator_view() -> LinearLayout {
     .fixed_height(5)
     .with_name("dashboard");
 
-    // Create config section with TextArea and buttons
+    // Add network selection radio group
+    let mut radio_group = RadioGroup::new();
+    let radio_button1 = radio_group.button("testnet".to_string(), "TESTNET");
+    let radio_button2 = radio_group.button("mainnet".to_string(), "MAINNET");
+
+    let mut radio_layout = LinearLayout::horizontal()
+        .child(TextView::new("Network: "))
+        .child(radio_button1)
+        .child(radio_button2);
+
     let text_area = TextArea::new()
         .content(get_script_content())
         .disabled()
@@ -277,6 +286,8 @@ pub fn get_validator_view() -> LinearLayout {
         }));
 
     let config_content = LinearLayout::vertical()
+        .child(radio_layout)
+        .child(DummyView.fixed_height(1))
         .child(ResizedView::with_full_screen(text_area))
         .child(button_layout);
 
@@ -702,7 +713,18 @@ fn update_dashboard(siv: &mut Cursive) {
                             Ok(_) => {
                                 // Try to read the status file
                                 if let Ok(content) = fs::read_to_string("catchup.status") {
-                                    if let Some(line) = content.lines()
+                                    // Check for error in content
+                                    if content.contains("error") || content.contains("Error") {
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, "Catchup status: Error detected in output");
+                                            s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                view.set_content(StyledString::styled(
+                                                    "N/A",
+                                                    Style::from(Color::Dark(BaseColor::Yellow))
+                                                ));
+                                            });
+                                        }));
+                                    } else if let Some(line) = content.lines()
                                         .find(|line| line.contains("slot(s) behind")) {
                                         let line_clone = line.to_string();
                                         
@@ -729,6 +751,17 @@ fn update_dashboard(siv: &mut Cursive) {
                                                 }));
                                             }
                                         }
+                                    } else {
+                                        // No "slot(s) behind" found in content
+                                        let _ = cb_sink.send(Box::new(move |s| {
+                                            update_logs(s, "Catchup status: No slot information found");
+                                            s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                view.set_content(StyledString::styled(
+                                                    "N/A",
+                                                    Style::from(Color::Dark(BaseColor::Yellow))
+                                                ));
+                                            });
+                                        }));
                                     }
                                 }
 
