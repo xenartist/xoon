@@ -666,9 +666,30 @@ fn update_dashboard(siv: &mut Cursive) {
                                     if let Some(line) = content.lines()
                                         .find(|line| line.contains("slot(s) behind")) {
                                         let line_clone = line.to_string();
-                                        let _ = cb_sink.send(Box::new(move |s| {
-                                            update_logs(s, &format!("Catchup status: {}", line_clone));
-                                        }));
+                                        
+                                        if let Some(num_str) = line_clone.split_whitespace()
+                                            .find(|&s| s.chars().all(|c| c.is_digit(10))) {
+                                            if let Ok(slots_behind) = num_str.parse::<u64>() {
+                                                let _ = cb_sink.send(Box::new(move |s| {
+                                                    update_logs(s, &format!("Catchup status: {}", line_clone));
+                                                    
+                                                    // Update dashboard based on slots_behind value
+                                                    s.call_on_name("catchup_status_text", |view: &mut TextView| {
+                                                        if slots_behind > 0 {
+                                                            view.set_content(StyledString::styled(
+                                                                "BEHIND",
+                                                                Style::from(Color::Dark(BaseColor::Red))
+                                                            ));
+                                                        } else {
+                                                            view.set_content(StyledString::styled(
+                                                                "CATCHUP",
+                                                                Style::from(Color::Dark(BaseColor::Green))
+                                                            ));
+                                                        }
+                                                    });
+                                                }));
+                                            }
+                                        }
                                     }
                                 }
 
