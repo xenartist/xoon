@@ -638,10 +638,27 @@ fn update_dashboard(siv: &mut Cursive) {
                     while IS_AUTO_CHECKING.load(Ordering::SeqCst) {
                         // Check if validator is still running
                         if !is_validator_running() {
-                            // Update catchup status to N/A when validator stops
+                            // Update validator status, catchup status, and button when validator stops
                             let _ = cb_sink.send(Box::new(|s| {
+                                // Update validator status to STOPPED
+                                s.call_on_name("status_text", |view: &mut TextView| {
+                                    view.set_content(StyledString::styled(
+                                        "STOPPED",
+                                        Style::from(Color::Dark(BaseColor::Red))
+                                    ));
+                                });
+                                
+                                // Update catchup status to N/A
                                 s.call_on_name("catchup_status_text", |view: &mut TextView| {
-                                    view.set_content(StyledString::styled("N/A", Style::from(Color::Dark(BaseColor::Yellow))));
+                                    view.set_content(StyledString::styled(
+                                        "N/A",
+                                        Style::from(Color::Dark(BaseColor::Yellow))
+                                    ));
+                                });
+
+                                // Update button state to "Start Validator"
+                                s.call_on_name("run_button", |button: &mut Button| {
+                                    button.set_label("Start Validator");
                                 });
                             }));
                             break;
