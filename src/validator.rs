@@ -638,6 +638,7 @@ fn update_dashboard(siv: &mut Cursive) {
                     while IS_AUTO_CHECKING.load(Ordering::SeqCst) {
                         // Check if validator is still running
                         if !is_validator_running() {
+                            update_logs(s, "Validator stopped, updating status...");
                             // Update validator status, catchup status, and button when validator stops
                             let _ = cb_sink.send(Box::new(|s| {
                                 // Update validator status to STOPPED
