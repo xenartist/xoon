@@ -54,6 +54,12 @@ exec solana-validator \
     --maximum-full-snapshots-to-retain 50 \
     &"#;
 
+const DEFAULT_MAINNET_SCRIPT: &str = r#"#!/bin/bash
+# Mainnet validator script will be added here
+"#;
+
+const DEFAULT_SCRIPT: &str = DEFAULT_TESTNET_SCRIPT;
+
 // Initialize regex pattern for ANSI escape codes
 lazy_static! {
     static ref ANSI_ESCAPE_RE: Regex = Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]|\x1B\[[0-9;]*m").unwrap();
