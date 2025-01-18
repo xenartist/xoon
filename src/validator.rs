@@ -625,6 +625,15 @@ fn update_dashboard(siv: &mut Cursive) {
         }
     });
 
+    // Update button state based on validator state
+    siv.call_on_name("run_button", |button: &mut Button| {
+        if is_running {
+            button.set_label("Stop Validator");
+        } else {
+            button.set_label("Start Validator");
+        }
+    });
+
     // If validator is running, start periodic checks
     if is_running {
         // Get script content to extract solana path
