@@ -40,9 +40,9 @@ exec solana-validator \
     --rpc-port 8899 \
     --full-rpc-api \
     --dynamic-port-range 8000-8020 \
-    --entrypoint.testnet.x1.xyz:8001 \
-    --entrypoint.testnet.x1.xyz:8000 \
-    --entrypoint.testnet.x1.xyz:8000 \
+    --entrypoint testnet.x1.xyz:8001 \
+    --entrypoint testnet.x1.xyz:8000 \
+    --entrypoint testnet.x1.xyz:8000 \
     --entrypoint owlnet.dev:8001 \
     --wal-recovery-mode skip_any_corrupted_record \
     --limit-ledger-size 50000000 \
@@ -189,6 +189,12 @@ pub fn get_validator_view() -> LinearLayout {
         .child(DummyView.fixed_width(4))
         .child(Button::new(if is_validator_running() { "Stop Validator" } else { "Start Validator" }, move |s| {
             if !is_validator_running() {
+                // Check if validator script exists
+                if !std::path::Path::new("validator-testnet.sh").exists() {
+                    // Save the script using existing function
+                    save_script(s);
+                    update_logs(s, "Created validator script from default content");
+                }
                 // Check if script is in edit mode
                 let is_editing = s.call_on_name("script_content", |view: &mut TextArea| {
                     view.is_enabled()
@@ -638,9 +644,9 @@ fn update_dashboard(siv: &mut Cursive) {
                     while IS_AUTO_CHECKING.load(Ordering::SeqCst) {
                         // Check if validator is still running
                         if !is_validator_running() {
-                            update_logs(siv, "Validator stopped, updating status...");
                             // Update validator status, catchup status, and button when validator stops
                             let _ = cb_sink.send(Box::new(|s| {
+                                update_logs(s, "Detected validator has stopped running. Updating status...");
                                 // Update validator status to STOPPED
                                 s.call_on_name("status_text", |view: &mut TextView| {
                                     view.set_content(StyledString::styled(
