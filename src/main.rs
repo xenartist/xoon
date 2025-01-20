@@ -4,6 +4,15 @@ use cursive::Cursive;
 use cursive::theme::{Theme, BaseColor, Color, PaletteColor};
 use cursive::views::{LinearLayout, SelectView, Panel, TextView};
 use cursive::traits::*;
+use cursive::event::Event;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{SystemTime, Duration};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref Q_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static ref LAST_Q_TIME: std::sync::Mutex<SystemTime> = std::sync::Mutex::new(SystemTime::now());
+}
 
 // Handle menu item selection
 fn menu_selected(siv: &mut Cursive, item: &str) {
@@ -25,7 +34,31 @@ fn menu_selected(siv: &mut Cursive, item: &str) {
 fn main() {
     // Initialize the cursive interface
     let mut siv = cursive::default();
-
+    
+    // Disable Ctrl-c
+    siv.clear_global_callbacks(Event::CtrlChar('c'));
+    
+    // Add 'q' key handler for quitting
+    siv.add_global_callback('q', |s| {
+        let now = SystemTime::now();
+        let mut last_time = LAST_Q_TIME.lock().unwrap();
+        
+        // If more than 2 seconds have passed, reset the counter
+        if now.duration_since(*last_time).unwrap_or(Duration::from_secs(0)) > Duration::from_secs(2) {
+            Q_COUNT.store(0, Ordering::SeqCst);
+        }
+        
+        // Update last press time
+        *last_time = now;
+        
+        // Increment counter
+        let count = Q_COUNT.fetch_add(1, Ordering::SeqCst) + 1;
+        
+        if count >= 4 {
+            s.quit();
+        }
+    });
+    
     // Set up the theme with unified black background
     let mut theme = Theme::default();
     theme.palette[PaletteColor::Background] = Color::Dark(BaseColor::Black);
