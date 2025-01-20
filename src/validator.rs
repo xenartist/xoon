@@ -65,13 +65,18 @@ lazy_static! {
 }
 
 // Function to get script content
-fn get_script_content() -> String {
+fn get_script_content(network: &str) -> String {
     // Get current executable path
     if let Ok(exe_path) = env::current_exe() {
         // Get the directory containing the executable
         if let Some(exe_dir) = exe_path.parent() {
-            // Create script path in the same directory
-            let script_path = exe_dir.join("validator-testnet.sh");
+            // Create script path based on network
+            let script_name = if network == "mainnet" {
+                "validator-mainnet.sh"
+            } else {
+                "validator-testnet.sh"
+            };
+            let script_path = exe_dir.join(script_name);
             
             // Try to read existing script
             if let Ok(content) = fs::read_to_string(&script_path) {
@@ -80,8 +85,12 @@ fn get_script_content() -> String {
         }
     }
     
-    // Return default script if file doesn't exist or can't be read
-    DEFAULT_SCRIPT.to_string()
+    // Return default script if file doesn't exist
+    if network == "mainnet" {
+        DEFAULT_MAINNET_SCRIPT.to_string()
+    } else {
+        DEFAULT_TESTNET_SCRIPT.to_string()
+    }
 }
 
 // Add this function to check if validator is running
@@ -156,13 +165,21 @@ pub fn get_validator_view() -> LinearLayout {
     let radio_button1 = radio_group.button("testnet".to_string(), "TESTNET");
     let radio_button2 = radio_group.button("mainnet".to_string(), "MAINNET");
 
+    // Add callback for network selection
+    radio_group.set_on_change(|s, network| {
+        s.call_on_name("script_content", |view: &mut TextArea| {
+            view.set_content(get_script_content(network));
+        });
+    });
+
     let mut radio_layout = LinearLayout::horizontal()
         .child(TextView::new("Network: "))
         .child(radio_button1)
+        .child(DummyView.fixed_width(2))
         .child(radio_button2);
 
     let text_area = TextArea::new()
-        .content(get_script_content())
+        .content(get_script_content("testnet"))
         .disabled()
         .with_name("script_content")
         .min_height(10)
@@ -250,7 +267,7 @@ pub fn get_validator_view() -> LinearLayout {
         .child(DummyView.fixed_width(4))
         .child(Button::new("Check Validator Logs", move |s| {
             if is_validator_running() {
-                if let Some(log_path) = extract_log_path(&get_script_content()) {
+                if let Some(log_path) = extract_log_path(&get_script_content("testnet")) {
                     // Print log path to logs area
                     update_logs(s, &format!("Reading log file: {}", &log_path));
                     
