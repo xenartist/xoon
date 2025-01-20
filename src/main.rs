@@ -1,13 +1,14 @@
 mod validator;
 
 use cursive::Cursive;
-use cursive::theme::{Theme, BaseColor, Color, PaletteColor};
+use cursive::theme::{Theme, BaseColor, Color, PaletteColor, ColorStyle};
 use cursive::views::{LinearLayout, SelectView, Panel, TextView};
 use cursive::traits::*;
 use cursive::event::Event;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, Duration};
 use lazy_static::lazy_static;
+use cursive::utils::markup::StyledString;
 
 lazy_static! {
     static ref Q_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -22,6 +23,9 @@ fn menu_selected(siv: &mut Cursive, item: &str) {
             siv.call_on_name("right_sections", |view: &mut LinearLayout| {
                 *view = validator::get_validator_view();
             });
+        },
+        "quit_info" => {
+            // Do nothing for quit info item
         },
         _ => {
             siv.call_on_name("right_panel", |view: &mut Panel<TextView>| {
@@ -74,6 +78,22 @@ fn main() {
     
     // Add menu items
     menu.add_item("X1 Validator", "validator");
+    menu.add_item("", "");  // Add empty item as spacer
+    menu.add_item(
+        StyledString::styled(
+            "QUIT (Press 'q' 4 times)",
+            ColorStyle::new(Color::Light(BaseColor::Red), Color::Dark(BaseColor::Black))
+        ),
+        "quit_info"
+    );
+    menu.add_item("", "");  // Add empty item as spacer
+    menu.add_item(
+        StyledString::styled(
+            "by xen_artist",
+            ColorStyle::new(Color::Dark(BaseColor::Green), Color::Dark(BaseColor::Black))
+        ),
+        "author_info"
+    );
 
     // Set default selection to X1 Validator
     menu.set_selection(0);
