@@ -230,12 +230,30 @@ pub fn get_validator_view() -> LinearLayout {
         .child(DummyView.fixed_width(4))
         .child(Button::new(if is_validator_running() { "Stop Validator" } else { "Start Validator" }, move |s| {
             if !is_validator_running() {
-                // Check if validator script exists
-                if !std::path::Path::new("validator-testnet.sh").exists() {
-                    // Save the script using existing function
-                    save_script(s);
-                    update_logs(s, "Created validator script from default content");
+                // Get current network
+                let network = CURRENT_NETWORK.lock()
+                    .map(|network| network.clone())
+                    .unwrap_or_else(|_| "testnet".to_string());
+
+                // Get script path based on network
+                if let Ok(exe_path) = env::current_exe() {
+                    if let Some(exe_dir) = exe_path.parent() {
+                        let script_name = if network == "mainnet" {
+                            "validator-mainnet.sh"
+                        } else {
+                            "validator-testnet.sh"
+                        };
+                        let script_path = exe_dir.join(script_name);
+
+                        // Check if validator script exists
+                        if !script_path.exists() {
+                            // Save the script using existing function
+                            save_script(s);
+                            update_logs(s, &format!("Created {} validator script from default content", network));
+                        }
+                    }
                 }
+
                 // Check if script is in edit mode
                 let is_editing = s.call_on_name("script_content", |view: &mut TextArea| {
                     view.is_enabled()
