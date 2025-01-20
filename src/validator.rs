@@ -519,14 +519,20 @@ fn toggle_run_stop(siv: &mut Cursive) {
     let is_running = is_validator_running();
     
     if !is_running {
-        // Get script content
-        let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
-            view.get_content().to_string()
-        }).unwrap_or_default();
+        // Get current network
+        let network = CURRENT_NETWORK.lock()
+            .map(|network| network.clone())
+            .unwrap_or_else(|_| "testnet".to_string());
 
         if let Ok(exe_path) = env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
-                let script_path = exe_dir.join("validator-testnet.sh");
+                // Create script path based on network
+                let script_name = if network == "mainnet" {
+                    "validator-mainnet.sh"
+                } else {
+                    "validator-testnet.sh"
+                };
+                let script_path = exe_dir.join(script_name);
                 
                 // execute the validator script
                 match Command::new("bash")
@@ -537,7 +543,8 @@ fn toggle_run_stop(siv: &mut Cursive) {
                     .stderr(Stdio::piped())
                     .spawn() {
                     Ok(mut child) => {
-                        update_logs(siv, "Validator script started successfully! Please wait for status update...");
+                        update_logs(siv, &format!("{} validator script started successfully! Please wait for status update...", 
+                            if network == "mainnet" { "Mainnet" } else { "Testnet" }));
                         
                         // Get handles for stdout and stderr
                         let stdout = child.stdout.take().expect("Failed to capture stdout");
@@ -596,13 +603,14 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         });
                     },
                     Err(e) => {
-                        update_logs(siv, &format!("Failed to start validator: {}", e));
+                        update_logs(siv, &format!("Failed to start {} validator: {}", 
+                            if network == "mainnet" { "mainnet" } else { "testnet" }, e));
                     }
                 }
             }
         }
     } else {
-        // Get script content
+        // Get script content to get validator path and ledger path
         let script_content = siv.call_on_name("script_content", |view: &mut TextArea| {
             view.get_content().to_string()
         }).unwrap_or_default();
