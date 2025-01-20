@@ -51,8 +51,7 @@ exec solana-validator \
     --rpc-pubsub-enable-block-subscription \
     --full-snapshot-interval-slots 5000 \
     --maximum-incremental-snapshots-to-retain 10 \
-    --maximum-full-snapshots-to-retain 50 \
-    &"#;
+    --maximum-full-snapshots-to-retain 50"#;
 
 const DEFAULT_MAINNET_SCRIPT: &str = r#"#!/bin/bash
 # Mainnet validator script will be added here
@@ -478,7 +477,9 @@ fn toggle_run_stop(siv: &mut Cursive) {
                 
                 // execute the validator script
                 match Command::new("bash")
-                    .arg(&script_path)
+                    .arg("-c")
+                    .arg(format!("nohup {} &", script_path.display()))
+                    .stdin(Stdio::null())
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn() {
