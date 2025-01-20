@@ -164,7 +164,6 @@ pub fn get_validator_view() -> LinearLayout {
     let text_area = TextArea::new()
         .content(get_script_content())
         .disabled()
-        .scrollable()
         .with_name("script_content")
         .min_height(10)
         .max_height(24);
