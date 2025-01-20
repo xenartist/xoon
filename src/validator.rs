@@ -64,6 +64,10 @@ lazy_static! {
     static ref ANSI_ESCAPE_RE: Regex = Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]|\x1B\[[0-9;]*m").unwrap();
 }
 
+lazy_static! {
+    static ref CURRENT_NETWORK: Mutex<String> = Mutex::new("testnet".to_string());
+}
+
 // Function to get script content
 fn get_script_content(network: &str) -> String {
     // Get current executable path
@@ -167,6 +171,11 @@ pub fn get_validator_view() -> LinearLayout {
 
     // Add callback for network selection
     radio_group.set_on_change(|s, network| {
+        // Update current network
+        if let Ok(mut current_network) = CURRENT_NETWORK.lock() {
+            *current_network = network.to_string();
+        }
+        // Update script content
         s.call_on_name("script_content", |view: &mut TextArea| {
             view.set_content(get_script_content(network));
         });
@@ -176,7 +185,8 @@ pub fn get_validator_view() -> LinearLayout {
         .child(TextView::new("Network: "))
         .child(radio_button1)
         .child(DummyView.fixed_width(2))
-        .child(radio_button2);
+        .child(radio_button2)
+        .with_name("network_layout");
 
     let text_area = TextArea::new()
         .content(get_script_content("testnet"))
@@ -331,19 +341,29 @@ pub fn get_validator_view() -> LinearLayout {
 }
 
 // Function to save script content to file
-fn save_script(siv: &mut cursive::Cursive) {
-    let content = siv.call_on_name("script_content", |view: &mut TextArea| {
-        // Trim any trailing whitespace or newlines
+fn save_script(s: &mut Cursive) {
+    // Get current network from global variable
+    let network = CURRENT_NETWORK.lock()
+        .map(|network| Arc::new(network.clone()))
+        .unwrap_or_else(|_| Arc::new("testnet".to_string()));
+
+    // Get script content
+    let content = s.call_on_name("script_content", |view: &mut TextArea| {
         view.get_content().trim_end().to_string()
     }).unwrap_or_default();
-    
+
     // Get current executable path
     if let Ok(exe_path) = env::current_exe() {
         // Get the directory containing the executable
         if let Some(exe_dir) = exe_path.parent() {
-            // Create script path in the same directory
-            let script_path = exe_dir.join("validator-testnet.sh");
-            
+            // Create script path based on network
+            let script_name = if network.as_str() == "mainnet" {
+                "validator-mainnet.sh"
+            } else {
+                "validator-testnet.sh"
+            };
+            let script_path = exe_dir.join(script_name);
+
             // Save the content to file
             match fs::write(&script_path, content) {
                 Ok(_) => {
@@ -353,17 +373,16 @@ fn save_script(siv: &mut cursive::Cursive) {
                         use std::os::unix::fs::PermissionsExt;
                         if let Ok(metadata) = fs::metadata(&script_path) {
                             let mut perms = metadata.permissions();
-                            perms.set_mode(0o755); // rwxr-xr-x
+                            perms.set_mode(0o755);
                             let _ = fs::set_permissions(&script_path, perms);
                         }
                     }
                     
                     IS_SCRIPT_MODIFIED.store(false, Ordering::SeqCst);
-                    update_logs(siv, "Script validator-testnet.sh saved successfully!");
+                    update_logs(s, &format!("Script {} saved successfully!", script_name));
                 },
                 Err(e) => {
-                    // Update log to show error
-                    update_logs(siv, &format!("Failed to save script: {}", e));
+                    update_logs(s, &format!("Failed to save script: {}", e));
                 }
             }
         }
