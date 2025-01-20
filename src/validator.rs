@@ -714,6 +714,14 @@ fn update_dashboard(siv: &mut Cursive) {
         }
     });
 
+    // Reset auto check status when validator is not running
+    siv.call_on_name("auto_check_button", |button: &mut Button| {
+        if !is_running {
+            button.set_label("Auto Check Status");
+            IS_AUTO_CHECKING.store(false, Ordering::SeqCst);
+        }
+    });
+
     // If validator is running, start periodic checks
     if is_running {
         // Get script content to extract solana path
