@@ -2,21 +2,19 @@ use std::process::{Command, Child, Stdio};
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::env;
-use std::fs::{self, File};
+use std::fs::{self};
 use regex::Regex;
 use cursive::views::{LinearLayout, Panel, TextView, TextArea, Button, DummyView, ResizedView, ScrollView, Dialog, RadioGroup};
 use cursive::traits::*;
 use cursive::Cursive;
-use cursive::event::Event;
 use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
-use cursive::theme::{BaseColor, Color, Effect, Style};
+use cursive::theme::{BaseColor, Color, Style};
 use cursive::utils::markup::StyledString;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 
 // Add a constant for tracking script modification
@@ -56,8 +54,6 @@ exec solana-validator \
 const DEFAULT_MAINNET_SCRIPT: &str = r#"#!/bin/bash
 # Mainnet validator script will be added here
 "#;
-
-const DEFAULT_SCRIPT: &str = DEFAULT_TESTNET_SCRIPT;
 
 // Initialize regex pattern for ANSI escape codes
 lazy_static! {
@@ -181,7 +177,7 @@ pub fn get_validator_view() -> LinearLayout {
         });
     });
 
-    let mut radio_layout = LinearLayout::horizontal()
+    let radio_layout = LinearLayout::horizontal()
         .child(TextView::new("Network: "))
         .child(radio_button1)
         .child(DummyView.fixed_width(2))
@@ -427,6 +423,7 @@ fn extract_log_path(script_content: &str) -> Option<String> {
 // Add a constant for maximum log lines
 const MAX_LOG_LINES: usize = 100;
 
+#[allow(dead_code)]
 // Start tail process and monitor its output
 fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
     // Create log file if it doesn't exist
@@ -489,6 +486,7 @@ fn start_log_monitor(siv: &mut Cursive, log_path: &str) -> Option<Child> {
     Some(cmd)
 }
 
+#[allow(dead_code)]
 // Update logs with batched messages
 fn update_logs_batch(siv: &mut Cursive, messages: &str, log_buffer: &Arc<Mutex<VecDeque<String>>>) {
     // Clean ANSI escape sequences
@@ -577,7 +575,6 @@ fn toggle_run_stop(siv: &mut Cursive) {
                         });
 
                         // Create new thread to wait for process completion
-                        let cb_sink = siv.cb_sink().clone();
                         std::thread::spawn(move || {
                             let _ = child.wait();  // Wait for process to finish without blocking output
                         });
