@@ -1,4 +1,4 @@
 /target
 /ledger
-*.sh
 *.log
+*.tar.gz
