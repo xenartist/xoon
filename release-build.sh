@@ -10,7 +10,9 @@ while getopts "v:" opt; do
       VERSION="$OPTARG"
       ;;
     \?)
-      echo "Invalid option: -$OPTARG" >&2
+      echo "Error: Invalid option: -$OPTARG" >&2
+      echo "Usage: $0 -v VERSION"
+      echo "Example: $0 -v 0.1.0"
       exit 1
       ;;
   esac
