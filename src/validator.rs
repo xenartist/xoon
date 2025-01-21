@@ -189,7 +189,7 @@ pub fn get_validator_view() -> LinearLayout {
         .disabled()
         .with_name("script_content")
         .min_height(10)
-        .max_height(24);
+        .max_height(28);
 
     // Create button layout with space between buttons
     let button_layout = LinearLayout::horizontal()
