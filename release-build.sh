@@ -16,13 +16,22 @@ while getopts "v:" opt; do
   esac
 done
 
-# Output file name with version
+# Output names with version
 RELEASE_NAME="xoon-linux-x64-v${VERSION}"
+DIR_NAME="xoon-${VERSION}"
 
 echo "Building version ${VERSION}..."
 
+# Backup the original main.rs
+echo "Backing up main.rs..."
+cp src/main.rs src/main.rs.bak
+
+# Update version in main.rs
+echo "Updating version in main.rs..."
+sed -i "s/title(\"xoon\")/title(\"xoon-${VERSION}\")/" src/main.rs
+
 # Clean previous builds
-rm -rf xoon-release
+rm -rf ${DIR_NAME}
 rm -f ${RELEASE_NAME}.tar.gz
 
 # Build release version
@@ -31,25 +40,29 @@ cargo build --release --target x86_64-unknown-linux-gnu
 
 # Create release directory
 echo "Creating release directory..."
-mkdir xoon-release
+mkdir ${DIR_NAME}
 
 # Copy files
 echo "Copying files..."
-cp target/x86_64-unknown-linux-gnu/release/xoon xoon-release/
+cp target/x86_64-unknown-linux-gnu/release/xoon ${DIR_NAME}/
 if [ -f README.md ]; then
-    cp README.md xoon-release/
+    cp README.md ${DIR_NAME}/
 fi
 
 # Set permissions
 echo "Setting permissions..."
-chmod +x xoon-release/xoon
+chmod +x ${DIR_NAME}/xoon
 
 # Create tar.gz
 echo "Creating archive..."
-tar -czf ${RELEASE_NAME}.tar.gz xoon-release/
+tar -czf ${RELEASE_NAME}.tar.gz ${DIR_NAME}/
 
 # Clean up
 echo "Cleaning up..."
-rm -rf xoon-release
+rm -rf ${DIR_NAME}
+
+# Restore the original main.rs
+echo "Restoring main.rs..."
+mv src/main.rs.bak src/main.rs
 
 echo "Done! Archive created: ${RELEASE_NAME}.tar.gz"
