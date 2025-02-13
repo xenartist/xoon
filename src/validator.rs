@@ -25,13 +25,12 @@ static IS_AUTO_CHECKING: AtomicBool = AtomicBool::new(false);
 
 // Default validator script content
 const DEFAULT_TESTNET_SCRIPT: &str = r#"#!/bin/bash
-exec solana-validator \
+exec tachyon-validator \
     --identity ~/.config/solana/identity.json \
     --vote-account ~/.config/solana/vote.json \
     --known-validator Abt4r6uhFs7yPwR3jT5qbnLjBtasgHkRVAd1W6H5yonT \
     --known-validator 5NfpgFCwrYzcgJkda9bRJvccycLUo3dvVQsVAK2W43Um \
     --known-validator FcrZRBfVk2h634L9yvkysJdmvdAprq1NM4u263NuR6LC \
-    --known-validator Tpsu5EYTJAXAat19VEh54zuauHvUBuryivSFRC3RiFk \
     --only-known-rpc \
     --log ./validator.log \
     --ledger ./ledger \
@@ -100,7 +99,7 @@ fn is_validator_running() -> bool {
         .output()
         .map(|output| {
             let processes = String::from_utf8_lossy(&output.stdout);
-            processes.contains("solana-validator")
+            processes.contains("tachyon-validator")
         })
         .unwrap_or(false);
     
@@ -126,7 +125,7 @@ fn extract_ledger_path(script_content: &str) -> Option<String> {
 // Add function to extract solana binary path
 fn extract_solana_path(script_content: &str) -> Option<PathBuf> {
     if let Some(validator_line) = script_content.lines()
-        .find(|line| line.contains("exec") && line.contains("solana-validator")) {
+        .find(|line| line.contains("exec") && line.contains("tachyon-validator")) {
         if let Some(path) = validator_line.split("exec").nth(1) {
             if let Some(validator_path) = path.trim().split_whitespace().next() {
                 return Some(PathBuf::from(validator_path).parent()?.join("solana"));
@@ -617,7 +616,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
             extract_validator_path(&script_content),
             extract_ledger_path(&script_content)
         ) {
-            // Execute solana-validator exit command with ledger path
+            // Execute tachyon-validator exit command with ledger path
             match Command::new(&validator_path)
                 .args(["--ledger", &ledger_path, "exit", "-f"])
                 .stdout(Stdio::piped())
@@ -627,7 +626,7 @@ fn toggle_run_stop(siv: &mut Cursive) {
                     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
                     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
                     
-                    update_logs(siv, "Executing solana-validator exit command. Please wait for status update...");
+                    update_logs(siv, "Executing tachyon-validator exit command. Please wait for status update...");
                     if !stdout.is_empty() {
                         update_logs(siv, "Exit command stdout:");
                         update_logs(siv, &stdout);
